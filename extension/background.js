@@ -1,3 +1,18 @@
+// Badge helpers — green dot when credentials are available
+function setBadgeReady() {
+  chrome.action.setBadgeText({ text: " " });
+  chrome.action.setBadgeBackgroundColor({ color: "#22c55e" });
+}
+
+function clearBadge() {
+  chrome.action.setBadgeText({ text: "" });
+}
+
+// Restore badge state on service worker startup
+chrome.storage.local.get("wolt_auth", (data) => {
+  if (data.wolt_auth) setBadgeReady();
+});
+
 // Fallback: intercept Wolt API request headers when service worker is alive
 chrome.webRequest.onSendHeaders.addListener(
   (details) => {
@@ -14,6 +29,7 @@ chrome.webRequest.onSendHeaders.addListener(
         ...(sessionId && { wolt_session_id: sessionId }),
         captured_at: Date.now(),
       });
+      setBadgeReady();
     }
   },
   { urls: ["https://consumer-api.wolt.com/*"] },
@@ -30,6 +46,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     };
     if (message.sessionId) update.wolt_session_id = message.sessionId;
     chrome.storage.local.set(update);
+    setBadgeReady();
     return; // no async response needed
   }
 

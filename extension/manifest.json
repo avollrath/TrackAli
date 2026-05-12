@@ -6,7 +6,8 @@
   "permissions": [
     "webRequest",
     "storage",
-    "activeTab"
+    "activeTab",
+    "action"
   ],
   "host_permissions": [
     "https://consumer-api.wolt.com/*",
