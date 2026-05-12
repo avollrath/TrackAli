@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wolt Ratings Sync",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Capture Wolt session tokens and sync order history to your local Wolt Ratings app.",
   "permissions": [
     "webRequest",
@@ -16,6 +16,13 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://wolt.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

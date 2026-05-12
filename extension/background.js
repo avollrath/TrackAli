@@ -1,27 +1,17 @@
-// Intercept Wolt API requests to capture auth headers
-const captured = {
-  authorization: null,
-  sessionId: null,
-};
-
+// Fallback: intercept Wolt API request headers when service worker is alive
 chrome.webRequest.onSendHeaders.addListener(
   (details) => {
-    if (!details.url.includes("consumer-api.wolt.com")) return;
-
+    let auth = null;
+    let sessionId = null;
     for (const header of details.requestHeaders || []) {
       const name = header.name.toLowerCase();
-      if (name === "authorization" && header.value?.startsWith("Bearer ")) {
-        captured.authorization = header.value;
-      }
-      if (name === "wolt-session-id") {
-        captured.sessionId = header.value;
-      }
+      if (name === "authorization" && header.value?.startsWith("Bearer ")) auth = header.value;
+      if (name === "wolt-session-id") sessionId = header.value;
     }
-
-    if (captured.authorization && captured.sessionId) {
+    if (auth) {
       chrome.storage.local.set({
-        wolt_auth: captured.authorization,
-        wolt_session_id: captured.sessionId,
+        wolt_auth: auth,
+        ...(sessionId && { wolt_session_id: sessionId }),
         captured_at: Date.now(),
       });
     }
@@ -30,8 +20,20 @@ chrome.webRequest.onSendHeaders.addListener(
   ["requestHeaders", "extraHeaders"]
 );
 
-// Listen for sync command from popup
+// Listen for messages from content script and popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // Primary credential capture: content script read token from localStorage
+  if (message.action === "storeCredentials") {
+    const update = {
+      wolt_auth: message.authorization,
+      captured_at: Date.now(),
+    };
+    if (message.sessionId) update.wolt_session_id = message.sessionId;
+    chrome.storage.local.set(update);
+    return; // no async response needed
+  }
+
+
   if (message.action === "sync") {
     handleSync()
       .then((result) => sendResponse(result))
@@ -44,7 +46,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       ["wolt_auth", "wolt_session_id", "captured_at"],
       (data) => {
         sendResponse({
-          hasCredentials: !!(data.wolt_auth && data.wolt_session_id),
+          hasCredentials: !!data.wolt_auth,
           capturedAt: data.captured_at || null,
         });
       }
@@ -61,22 +63,22 @@ async function handleSync() {
     "wolt_session_id",
   ]);
 
-  if (!data.wolt_auth || !data.wolt_session_id) {
+  if (!data.wolt_auth) {
     throw new Error(
-      "No credentials captured yet. Open wolt.com and browse around first."
+      "No credentials captured yet. Open wolt.com, wait a moment, then try again."
     );
   }
+
+  const reqHeaders = {
+    Authorization: data.wolt_auth,
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  };
+  if (data.wolt_session_id) reqHeaders["wolt-session-id"] = data.wolt_session_id;
 
   // Fetch order history from Wolt
   const woltRes = await fetch(
     "https://consumer-api.wolt.com/order-tracking-api/v1/order_history/?limit=50",
-    {
-      headers: {
-        Authorization: data.wolt_auth,
-        "wolt-session-id": data.wolt_session_id,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      },
-    }
+    { headers: reqHeaders }
   );
 
   if (!woltRes.ok) {
