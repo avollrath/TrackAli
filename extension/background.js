@@ -33,9 +33,9 @@ chrome.webRequest.onSendHeaders.addListener(
 // Listen for sync command from popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "sync") {
-    handleSync().then(sendResponse).catch((err) => {
-      sendResponse({ success: false, error: err.message });
-    });
+    handleSync()
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true; // keep channel open for async response
   }
 
@@ -51,6 +51,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     );
     return true;
   }
+
+  // unhandled message — don't return true
 });
 
 async function handleSync() {
@@ -72,7 +74,7 @@ async function handleSync() {
       headers: {
         Authorization: data.wolt_auth,
         "wolt-session-id": data.wolt_session_id,
-        "User-Agent": navigator.userAgent,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
       },
     }
   );
