@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wolt Ratings Sync</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 300px;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+
+    .header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: #009de0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .header p {
+      font-size: 11px;
+      color: #888;
+      margin-top: 1px;
+    }
+
+    .body {
+      padding: 16px;
+    }
+
+    .status-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+
+    .dot.green { background: #22c55e; }
+    .dot.yellow { background: #eab308; }
+    .dot.red { background: #ef4444; }
+
+    #status-text {
+      flex: 1;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #555;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .btn-primary {
+      background: #009de0;
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #007bb5;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .result {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .result.success {
+      background: #052e16;
+      border: 1px solid #166534;
+      color: #86efac;
+    }
+
+    .result.error {
+      background: #2d0a0a;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+    }
+
+    .footer {
+      padding: 10px 16px;
+      border-top: 1px solid #1a1a1a;
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+    }
+
+    .footer a {
+      color: #009de0;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🍜</div>
+    <div>
+      <h1>Wolt Ratings</h1>
+      <p>Order history sync</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="status-card">
+      <div class="status-row">
+        <div class="dot" id="status-dot"></div>
+        <span id="status-text">Checking credentials…</span>
+      </div>
+      <p class="hint" id="hint-text"></p>
+    </div>
+
+    <button class="btn btn-primary" id="sync-btn" disabled>
+      Sync Now
+    </button>
+
+    <div class="result" id="result-box"></div>
+  </div>
+
+  <div class="footer">
+    <a href="http://localhost:5000" target="_blank">Open Dashboard →</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
