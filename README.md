@@ -1,40 +1,71 @@
 # Wolt Ratings
 
-A local-first web application to sync your Wolt order history, then enrich each order with personal star ratings and text notes.
+> *Because "I think I liked that place?" isn't good enough.*
+
+I order on Wolt a lot. After a while I noticed I kept reordering from restaurants I'd forgotten I didn't enjoy, and skipping ones I'd loved but couldn't remember. Wolt shows you your order history — but it gives you no way to annotate it. No stars, no notes, no memory.
+
+So I built one.
+
+**Wolt Ratings** is a local-first tool that pulls your order history into a personal dashboard where you can rate every order 1–5 stars and leave notes for your future self. *"The garlic sauce is elite here."* *"Ask for extra spicy next time."* *"Never again."* It lives entirely on your machine — your data never touches a third-party server.
+
+![Dashboard screenshot placeholder](https://placehold.co/1200x600/0f0f0f/009de0?text=Wolt+Ratings+Dashboard)
+
+---
+
+## How it works
+
+Three components, each doing one job:
 
 ```
-┌─────────────────┐     POST /sync      ┌──────────────────┐     GET /orders     ┌─────────────────┐
-│ Chrome Extension│ ──────────────────► │  Python / Flask  │ ──────────────────► │  Vanilla JS UI  │
-│  (captures JWT) │                     │  + orders_db.json│ ◄────────────────── │  localhost:5000 │
-└─────────────────┘                     └──────────────────┘     POST /update     └─────────────────┘
+┌─────────────────────┐     POST /sync      ┌──────────────────────┐     GET /orders     ┌──────────────────┐
+│  Chrome Extension   │ ──────────────────► │   Python / Flask     │ ──────────────────► │  Vanilla JS UI   │
+│  Captures JWT from  │                     │   orders_db.json     │ ◄────────────────── │  localhost:5000  │
+│  wolt.com localStorage                    │   Non-destructive    │     POST /update    │  Stars + Notes   │
+└─────────────────────┘                     │   merge engine       │                     └──────────────────┘
+                                            └──────────────────────┘
 ```
+
+**The extension** injects a content script into wolt.com that reads your session token directly from the page's localStorage — no login scraping, no password required. One click of "Sync Now" fetches your last 50 orders from Wolt's API and sends them to your local backend.
+
+**The backend** (Flask + a plain JSON file) merges incoming orders intelligently: new orders are added, existing ones are never touched. Your ratings and notes are safe no matter how many times you sync.
+
+**The dashboard** is a clean, searchable table. Click stars to rate, click the notes field to annotate. Everything saves instantly on interaction.
 
 ---
 
 ## Features
 
-- **Session capture** — the extension passively intercepts the Wolt `Authorization` bearer token and `wolt-session-id` from any request you make on wolt.com (no login scraping).
-- **One-click sync** — popup "Sync Now" fetches the last 50 orders from the Wolt API and POSTs them to your local backend.
-- **Non-destructive merge** — existing orders (with your saved ratings/notes) are never overwritten. Only new orders are appended.
-- **Interactive UI** — star ratings (1–5) and free-text notes per order. Both auto-save on interaction.
-- **Filtering** — search by venue or item name, hide failed orders, show only rated orders, sort by date / rating / venue.
-- **Sync feedback** — the popup and the dashboard both show "X new orders added, Y already existed".
+- **One-click sync** — browser extension captures your session token automatically and fetches orders with a single button press
+- **Non-destructive merge** — re-syncing never overwrites your saved ratings or notes
+- **Star ratings** — rate any order 1–5; saved the moment you click
+- **Free-text notes** — annotate dishes, flag bad experiences, remind yourself what to reorder
+- **Search & filter** — find orders by restaurant or dish name; hide failed orders; show only rated orders
+- **Sort** — newest first, oldest first, highest rated, venue A–Z
+- **Sync summary** — popup tells you exactly how many new orders were added vs. already existed
+- **Local-first** — everything runs on `localhost`; your order history never leaves your machine
 
 ---
 
-## Prerequisites
+## Stack
+
+| Layer | Technology | Why |
+|-------|------------|-----|
+| Extension | Chrome MV3, content script | Reads JWT from page localStorage — more reliable than header interception |
+| Backend | Python 3, Flask, Flask-CORS | Zero-dependency local server; JSON file is human-readable and portable |
+| Frontend | Vanilla JS, Tailwind CDN | No build step — `index.html` is served directly by Flask |
+
+No Node.js. No npm. No bundler. Just `python backend/app.py` and you're running.
+
+---
+
+## Getting started
+
+### Prerequisites
 
 | Tool | Version |
 |------|---------|
 | Python | 3.10+ |
-| pip | any |
-| Google Chrome | 88+ (Manifest V3) |
-
-No Node.js or build step required.
-
----
-
-## Installation
+| Chrome or Edge | 88+ (Manifest V3) |
 
 ### 1. Clone the repo
 
@@ -55,89 +86,82 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-The server starts at `http://localhost:5000`. The frontend is served from the same process — just open that URL.
+The server starts at `http://localhost:5000`. The dashboard is served from the same process.
 
-### 4. Install the Chrome extension
+### 4. Install the browser extension
 
-1. Open Chrome and go to `chrome://extensions`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Select the `extension/` folder from this repo
+1. Go to `chrome://extensions` (or `edge://extensions`)
+2. Enable **Developer mode** (toggle, top-right)
+3. Click **Load unpacked** → select the `extension/` folder
 
-The Wolt Ratings icon appears in your toolbar.
+The Wolt Ratings icon appears in your toolbar. Pin it for easy access.
 
-> **First-time icon generation** — if the extension icon shows as broken, run:
-> ```bash
-> python extension/generate_icons.py
-> ```
-> Then reload the extension in `chrome://extensions`.
+> If the extension icon appears broken, run `python extension/generate_icons.py` once, then reload the extension.
 
 ---
 
 ## Usage
 
-### Syncing orders
+### Syncing your orders
 
-1. Open **[wolt.com](https://wolt.com)** in Chrome and browse any page (the orders page works best). This lets the extension capture your session token.
-2. Click the **Wolt Ratings** extension icon.
-3. The popup should show a green dot: *"Credentials captured Xs ago"*.
-4. Click **Sync Now**.
-5. The popup reports: *"3 new orders added, 47 already in database"*.
-6. Open `http://localhost:5000` — your orders appear immediately.
+1. Open **[wolt.com](https://wolt.com)** — any page, but the order history page works best
+2. Wait a moment for the page to fully load
+3. Click the **Wolt Ratings** toolbar icon — you should see a green dot: *"Credentials captured"*
+4. Click **Sync Now**
+5. The popup reports: *"12 new orders added, 38 already in database"*
+6. Open `http://localhost:5000` — your orders are there
 
-> If the dot is yellow (*"No credentials yet"*), navigate to `https://wolt.com/en/discovery` or your order history page and try again.
+> **Yellow dot?** Navigate to your [Wolt order history](https://wolt.com/en/me/order-history) and reload the page. The content script will pick up your session on the next page load.
 
-### Rating and noting orders
+> **Token expired?** Wolt JWTs last ~30 minutes. If you get a sync error after a while, just reload wolt.com and sync again.
 
-- **Stars** — click any star in the Rating column. Saves instantly.
-- **Notes** — click the Notes cell, type, then click away (blur). Saves on focus loss.
+### Rating and annotating
 
-All data is stored in `backend/orders_db.json` — a human-readable file you can back up, edit, or migrate at any time.
+- **Stars** — click any star on a row. Saves immediately.
+- **Notes** — click the notes field, type, then click away. Saves on blur.
+
+All data lives in `backend/orders_db.json` — a plain JSON file you can read, back up, or import into anything.
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 wolt-ratings/
 ├── extension/
-│   ├── manifest.json       # Manifest V3 config
-│   ├── background.js       # Service worker: header capture + sync logic
+│   ├── manifest.json       # MV3 config — permissions, content script registration
+│   ├── background.js       # Service worker: stores credentials, runs sync fetch
+│   ├── content.js          # Injected into wolt.com: reads JWT from localStorage
 │   ├── popup.html          # Extension popup UI
-│   ├── popup.js            # Popup logic
-│   ├── generate_icons.py   # One-time icon generator
-│   └── icons/              # PNG icons (16, 48, 128px)
+│   ├── popup.js            # Popup logic: status check, sync trigger, result display
+│   ├── generate_icons.py   # One-time icon generator (pure stdlib, no Pillow)
+│   └── icons/              # PNG icons at 16, 48, 128px
 │
 ├── backend/
-│   ├── app.py              # Flask server (sync / update / orders endpoints)
-│   ├── requirements.txt
-│   └── orders_db.json      # Created automatically on first sync
+│   ├── app.py              # Flask server: /sync, /update, /orders, /health
+│   ├── requirements.txt    # flask, flask-cors
+│   └── orders_db.json      # Auto-created on first sync; gitignored
 │
 ├── frontend/
-│   ├── index.html          # Dashboard (served by Flask at localhost:5000)
-│   └── app.js              # Vanilla JS: render, filter, auto-save
+│   ├── index.html          # Dashboard markup + Tailwind CDN
+│   └── app.js              # Fetch, render, filter, sort, auto-save
 │
 └── README.md
 ```
 
 ---
 
-## API Reference
+## API reference
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET`  | `/`      | Serves the frontend dashboard |
-| `GET`  | `/orders` | Returns full DB as JSON |
-| `POST` | `/sync`  | Accepts raw Wolt API payload; merges new orders |
-| `POST` | `/update` | Updates `rating` and/or `notes` for one order |
-| `GET`  | `/health` | Returns server status and order count |
+| `GET` | `/` | Serves the frontend dashboard |
+| `GET` | `/orders` | Returns the full database as JSON |
+| `POST` | `/sync` | Merges incoming Wolt orders; returns diff summary |
+| `POST` | `/update` | Patches `rating` and/or `notes` for one order |
+| `GET` | `/health` | Server status and total order count |
 
-### `POST /sync` — request body
-
-Raw JSON from the Wolt order history API (`{ "orders": [...] }`).
-
-### `POST /sync` — response
-
+**`POST /sync` response:**
 ```json
 {
   "new_orders": 3,
@@ -147,21 +171,18 @@ Raw JSON from the Wolt order history API (`{ "orders": [...] }`).
 }
 ```
 
-### `POST /update` — request body
-
+**`POST /update` request:**
 ```json
 {
   "purchase_id": "abc123",
   "rating": 4,
-  "notes": "A bit too spicy this time."
+  "notes": "A bit too spicy this time — ask for medium next visit."
 }
 ```
 
-Both `rating` and `notes` are optional — send only what changed.
-
 ---
 
-## Data Schema
+## Data schema
 
 `backend/orders_db.json`:
 
@@ -188,29 +209,18 @@ Both `rating` and `notes` are optional — send only what changed.
 
 ---
 
-## Notes & known limitations
+## Possible extensions
 
-- **Token expiry** — Wolt bearer tokens expire (~30 min). If the sync fails with a 401, refresh wolt.com and sync again.
-- **50-order limit** — the Wolt API endpoint is capped at 50 per request. Run sync regularly to keep your history complete.
-- **Local only** — the backend binds to `127.0.0.1`. Your data never leaves your machine.
-- **Manifest V3 + `extraHeaders`** — reading `Authorization` from outgoing request headers requires the `extraHeaders` flag in the `webRequest` listener. This is implemented correctly in `background.js` but may require Chrome 96+.
+A few things I'd add if this grew:
 
----
-
-## Upgrading to SQLite (optional)
-
-For large histories (500+ orders), swap `orders_db.json` for SQLite:
-
-```python
-# backend/app.py — replace load_db/save_db with sqlite3
-import sqlite3
-conn = sqlite3.connect("orders.db")
-```
-
-The schema maps 1:1. Everything else (Flask routes, frontend) stays the same.
+- **SQLite backend** — drop-in replacement for the JSON file; better for querying once you have hundreds of orders
+- **Export to CSV** — for when you want to analyse your spending in a spreadsheet
+- **Venue summary view** — aggregate ratings per restaurant across all visits
+- **Pagination / infinite scroll** — for long histories
+- **Dark/light theme toggle** — currently dark only
 
 ---
 
 ## License
 
-MIT
+MIT — do whatever you want with it.
