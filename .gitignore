@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Database (contains your personal order data)
+backend/orders_db.json
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
