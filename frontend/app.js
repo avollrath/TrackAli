@@ -55,6 +55,7 @@ const exportBtn        = document.getElementById("export-btn");
 const importBtn        = document.getElementById("import-btn");
 const importFile       = document.getElementById("import-file");
 const demoBtn          = document.getElementById("demo-btn");
+const perVenueChk      = document.getElementById("per-venue");
 const unratedCard      = document.getElementById("stat-unrated-card");
 const modalBackdrop    = document.getElementById("modal-backdrop");
 const modalClose       = document.getElementById("modal-close");
@@ -121,13 +122,46 @@ function populateYearSelect() {
     years.map(y => `<option value="${y}"${y === current ? " selected" : ""}>${y}</option>`).join("");
 }
 
+function venueRatingScore(orders) {
+  const rated = orders.filter(o => o.user_custom_data?.rating > 0);
+  const avg = rated.length ? rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length : 0;
+  return avg * Math.log(rated.length + 1);
+}
+
+function aggregateByVenue(orders) {
+  const map = new Map();
+  for (const o of orders) {
+    if (!map.has(o.venue_name)) map.set(o.venue_name, []);
+    map.get(o.venue_name).push(o);
+  }
+  return [...map.entries()].map(([venue_name, group]) => {
+    const sorted = group.slice().sort((a, b) => compareDates(a.received_at, b.received_at));
+    const totalAmount = group.reduce((s, o) => s + parseAmount(o.total_amount), 0);
+    const rated = group.filter(o => o.user_custom_data?.rating > 0);
+    const avgRating = rated.length
+      ? rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length
+      : 0;
+    return {
+      _venueRow: true,
+      purchase_id: `venue-${venue_name}`,
+      venue_name,
+      received_at: sorted[0].received_at,
+      received_at_last: sorted[sorted.length - 1].received_at,
+      total_amount: `${totalAmount.toFixed(2)} EUR`,
+      user_custom_data: { rating: Math.round(avgRating * 10) / 10, notes: "" },
+      _avgRating: avgRating,
+      _orderCount: group.length,
+    };
+  });
+}
+
 function getFiltered() {
   const q         = searchInput.value.trim().toLowerCase();
   const onlyRated = onlyRatedChk.checked;
+  const perVenue  = perVenueChk.checked;
   const sort      = sortSelect.value;
   const year      = yearSelect.value;
 
-  // allOrders already excludes failed orders at load time
   let list = allOrders.filter(o => {
     if (onlyRated && (!o.user_custom_data || o.user_custom_data.rating === 0)) return false;
     if (q && !`${o.venue_name} ${o.items}`.toLowerCase().includes(q)) return false;
@@ -135,23 +169,26 @@ function getFiltered() {
     return true;
   });
 
+  if (perVenue) list = aggregateByVenue(list);
+
   if (sort === "rating_desc") {
+    if (perVenue) {
+      return list.slice().sort((a, b) => (b._avgRating || 0) * Math.log((b._orderCount || 1) + 1) - (a._avgRating || 0) * Math.log((a._orderCount || 1) + 1));
+    }
     const venueScore = {};
     const venueGroups = {};
     for (const o of allOrders) {
       if (!venueGroups[o.venue_name]) venueGroups[o.venue_name] = [];
-      venueGroups[o.venue_name].push(o.user_custom_data?.rating || 0);
+      venueGroups[o.venue_name].push(o);
     }
-    for (const [venue, ratings] of Object.entries(venueGroups)) {
-      const rated = ratings.filter(r => r > 0);
-      const avg = rated.length ? rated.reduce((s, r) => s + r, 0) / rated.length : 0;
-      venueScore[venue] = avg * Math.log(rated.length + 1);
+    for (const [venue, orders] of Object.entries(venueGroups)) {
+      venueScore[venue] = venueRatingScore(orders);
     }
     return list.slice().sort((a, b) => (venueScore[b.venue_name] || 0) - (venueScore[a.venue_name] || 0));
   }
 
   return list.slice().sort((a, b) => {
-    if (sort === "date_desc")   return compareDates(b.received_at, a.received_at);
+    if (sort === "date_desc")   return compareDates(b._venueRow ? b.received_at_last : b.received_at, a._venueRow ? a.received_at_last : a.received_at);
     if (sort === "date_asc")    return compareDates(a.received_at, b.received_at);
     if (sort === "value_desc")  return parseAmount(b.total_amount) - parseAmount(a.total_amount);
     if (sort === "venue_asc")   return a.venue_name.localeCompare(b.venue_name);
@@ -165,8 +202,10 @@ function renderTable(resetScroll = true) {
   currentList = getFiltered();
   if (resetScroll) visibleCount = PAGE_SIZE;
 
-  updateStats(currentList);
-  countLabel.textContent = `${currentList.length} of ${allOrders.length} orders`;
+  updateStats(perVenueChk.checked ? allOrders : currentList);
+  countLabel.textContent = perVenueChk.checked
+    ? `${currentList.length} venues`
+    : `${currentList.length} of ${allOrders.length} orders`;
 
   if (allOrders.length === 0) {
     tableContainer.classList.add("hidden");
@@ -258,6 +297,24 @@ function fmtEuro(amount) {
 // ---------------------------------------------------------------------------
 function renderRowHtml(order) {
   const userCustomData = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
+
+  if (order._venueRow) {
+    const rating = order._avgRating || 0;
+    const starsHtml = [1,2,3,4,5].map(v =>
+      `<span class="modal-mini-star">${starSvg(v <= Math.round(rating), 26)}</span>`
+    ).join("");
+    const dateCell = order.received_at_last && order.received_at_last !== order.received_at
+      ? `<div>${escHtml(order.received_at)}</div><div class="venue-row-date-last">${escHtml(order.received_at_last)}</div>`
+      : escHtml(order.received_at);
+    return `
+      <td class="order-date-cell">${dateCell}</td>
+      <td><button class="venue-link" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
+      <td class="items-cell venue-row-na">—</td>
+      <td class="total-cell text-right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
+      <td><div class="stars-wrap">${starsHtml}</div></td>
+      <td class="venue-row-na">—</td>`;
+  }
+
   return `
     <td class="order-date-cell">${escHtml(order.received_at)}</td>
     <td><button class="venue-link" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
@@ -272,6 +329,11 @@ function renderRowHtml(order) {
 }
 
 function bindRowEvents(rowElement, order) {
+  if (order._venueRow) {
+    rowElement.querySelector(".venue-link").addEventListener("click", () => openModal(order.venue_name));
+    return;
+  }
+
   const userCustomData = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
   order.user_custom_data = userCustomData;
 
@@ -593,6 +655,11 @@ yearSelect.addEventListener("change", () => renderTable(true));
 
 onlyRatedChk.addEventListener("change", () => {
   onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
+  renderTable(true);
+});
+
+perVenueChk.addEventListener("change", () => {
+  perVenueChk.closest(".filter-chip").classList.toggle("active", perVenueChk.checked);
   renderTable(true);
 });
 

@@ -592,6 +592,16 @@
       line-height: 1;
     }
 
+    .venue-row-date-last {
+      margin-top: 4px;
+      opacity: 0.6;
+    }
+
+    .venue-row-na {
+      color: var(--color-text-subtle);
+      font-size: 12px;
+    }
+
     /* Total */
     .total-cell {
       font-weight: 500;
