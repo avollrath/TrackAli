@@ -21,12 +21,10 @@ So I built one.
 Three components, each doing one job:
 
 ```
-┌─────────────────────┐     POST /sync      ┌──────────────────────┐     GET /orders     ┌──────────────────┐
-│  Chrome Extension   │ ──────────────────► │   Python / Flask     │ ──────────────────► │  Vanilla JS UI   │
-│  Captures JWT from  │                     │   orders_db.json     │ ◄────────────────── │  localhost:5000  │
-│  wolt.com localStorage                    │   Non-destructive    │     POST /update    │  Stars + Notes   │
-└─────────────────────┘                     │   merge engine       │                     └──────────────────┘
-                                            └──────────────────────┘
+Chrome Extension  →  POST /sync   →  Flask Backend  →  GET /orders  →  Dashboard UI
+(reads JWT from                      orders_db.json                     localhost:5000
+ wolt.com localStorage)              non-destructive    POST /update     Stars · Notes
+                                     merge engine       ←────────────    Search · Sort
 ```
 
 **The extension** injects a content script into wolt.com that reads your session token directly from the page's localStorage — no login scraping, no password required. One click of "Sync Now" fetches your full order history from Wolt's API and sends it to your local backend.
