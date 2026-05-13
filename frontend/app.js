@@ -135,10 +135,24 @@ function getFiltered() {
     return true;
   });
 
+  if (sort === "rating_desc") {
+    const venueScore = {};
+    const venueGroups = {};
+    for (const o of allOrders) {
+      if (!venueGroups[o.venue_name]) venueGroups[o.venue_name] = [];
+      venueGroups[o.venue_name].push(o.user_custom_data?.rating || 0);
+    }
+    for (const [venue, ratings] of Object.entries(venueGroups)) {
+      const rated = ratings.filter(r => r > 0);
+      const avg = rated.length ? rated.reduce((s, r) => s + r, 0) / rated.length : 0;
+      venueScore[venue] = avg * Math.log(rated.length + 1);
+    }
+    return list.slice().sort((a, b) => (venueScore[b.venue_name] || 0) - (venueScore[a.venue_name] || 0));
+  }
+
   return list.slice().sort((a, b) => {
     if (sort === "date_desc")   return compareDates(b.received_at, a.received_at);
     if (sort === "date_asc")    return compareDates(a.received_at, b.received_at);
-    if (sort === "rating_desc") return (b.user_custom_data?.rating || 0) - (a.user_custom_data?.rating || 0);
     if (sort === "value_desc")  return parseAmount(b.total_amount) - parseAmount(a.total_amount);
     if (sort === "venue_asc")   return a.venue_name.localeCompare(b.venue_name);
     return 0;
