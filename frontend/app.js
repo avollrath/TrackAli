@@ -216,8 +216,6 @@ function updateStats(list) {
 
   const unratedCount = list.filter(o => !o.user_custom_data?.rating).length;
   document.getElementById("stat-unrated").textContent = unratedCount;
-  document.getElementById("stat-unrated-sub").textContent =
-    unratedCount > 0 ? "click to review" : "all rated";
 }
 
 function parseAmount(str) {
