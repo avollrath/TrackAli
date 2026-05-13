@@ -99,6 +99,7 @@ function getFiltered() {
     if (sort === "date_desc")   return compareDates(b.received_at, a.received_at);
     if (sort === "date_asc")    return compareDates(a.received_at, b.received_at);
     if (sort === "rating_desc") return (b.user_custom_data?.rating || 0) - (a.user_custom_data?.rating || 0);
+    if (sort === "value_desc")  return parseAmount(b.total_amount) - parseAmount(a.total_amount);
     if (sort === "venue_asc")   return a.venue_name.localeCompare(b.venue_name);
     return 0;
   });
@@ -149,9 +150,9 @@ if (scrollSentinel) scrollObserver.observe(scrollSentinel);
 function updateStats(list) {
   const spent = list.reduce((sum, o) => sum + parseAmount(o.total_amount), 0);
   document.getElementById("stat-count").textContent      = list.length;
-  document.getElementById("stat-spent").textContent      = list.length ? `€${spent.toFixed(2)}` : "—";
+  document.getElementById("stat-spent").textContent      = list.length ? fmtEuro(spent) : "—";
   document.getElementById("stat-avg-value").textContent  =
-    list.length ? `€${(spent / list.length).toFixed(2)}` : "—";
+    list.length ? fmtEuro(spent / list.length) : "—";
 
   const rated = list.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
@@ -179,6 +180,10 @@ function parseAmount(str) {
   return isNaN(n) ? 0 : n;
 }
 
+function fmtEuro(amount) {
+  return `${amount.toFixed(2).replace(".", ",")}€`;
+}
+
 // ---------------------------------------------------------------------------
 // Row builder
 // ---------------------------------------------------------------------------
@@ -194,7 +199,7 @@ function buildRow(order) {
     <td class="items-cell">
       ${splitItems(order.items).map(i => `<div class="item-line">${escHtml(i)}</div>`).join("")}
     </td>
-    <td class="total-cell" style="text-align:right">${escHtml(order.total_amount)}</td>
+    <td class="total-cell" style="text-align:right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
     <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(ucd.rating, order.purchase_id)}</div></td>
     <td>
       <textarea class="notes-area" placeholder="Add a note…" data-id="${escHtml(order.purchase_id)}">${escHtml(ucd.notes)}</textarea>
@@ -272,8 +277,11 @@ function openModal(venueName) {
   document.getElementById("modal-venue-sub").textContent  =
     `First order ${venueOrders[venueOrders.length - 1]?.received_at || ""}`;
   document.getElementById("modal-stat-orders").textContent = venueOrders.length;
-  document.getElementById("modal-stat-spent").textContent  = `€${spent.toFixed(2)}`;
-  document.getElementById("modal-stat-rating").textContent = avgRating !== "—" ? `${avgRating} ★` : "—";
+  document.getElementById("modal-stat-spent").textContent  = fmtEuro(spent);
+  const modalRatingEl = document.getElementById("modal-stat-rating");
+  const modalRatingStar = document.getElementById("modal-stat-rating-star");
+  modalRatingEl.childNodes[0].textContent = avgRating !== "—" ? avgRating : "—";
+  modalRatingStar.style.display = avgRating !== "—" ? "inline" : "none";
 
   // Item frequency
   const itemFreq = {};
@@ -308,7 +316,7 @@ function openModal(venueName) {
           ${ucd.notes ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">💬 ${escHtml(ucd.notes)}</div>` : ""}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-          <div class="modal-order-total">${escHtml(o.total_amount)}</div>
+          <div class="modal-order-total">${fmtEuro(parseAmount(o.total_amount))}</div>
           <div class="modal-order-stars">${stars}</div>
         </div>
       </div>`;
