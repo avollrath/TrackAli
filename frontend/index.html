@@ -1,127 +1,1008 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wolt Ratings</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            wolt: { DEFAULT: "#009de0", dark: "#007bb5" },
-            surface: { DEFAULT: "#0f0f0f", card: "#161616", border: "#242424", hover: "#1e1e1e" },
-          },
-          fontFamily: {
-            sans: ['"Inter"', '"Segoe UI"', "sans-serif"],
-          },
-        },
-      },
-    };
-  </script>
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fonts.css" />
+
   <style>
-    body { background: #0f0f0f; }
-    .star-btn { transition: color 0.1s, transform 0.1s; }
-    .star-btn:hover { transform: scale(1.2); }
-    .notes-area { resize: none; field-sizing: content; min-height: 2rem; }
-    .notes-area:focus { outline: none; }
-    tr { border-bottom: 1px solid #1f1f1f; }
-    .status-badge { display: inline-flex; align-items: center; gap: 4px; }
-    .row-fade { animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0f0f0f; }
-    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:       #00C2E8;
+      --cyan-dark:  #00a8cc;
+      --cyan-light: #e6f9fd;
+      --text:       #1a1a2e;
+      --text-2:     #6b7280;
+      --text-3:     #9ca3af;
+      --bg:         #f7f8fa;
+      --surface:    #ffffff;
+      --border:     #e8eaed;
+      --green:      #12b76a;
+      --green-bg:   #ecfdf5;
+      --red:        #f04438;
+      --red-bg:     #fef3f2;
+      --radius-sm:  6px;
+      --radius:     12px;
+      --radius-lg:  16px;
+      --shadow-sm:  0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow:     0 4px 16px rgba(0,0,0,.07), 0 1px 4px rgba(0,0,0,.04);
+      --shadow-lg:  0 12px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, .omnes {
+      font-family: 'Omnes', sans-serif;
+      font-weight: 900;
+    }
+
+    /* ── Scrollbar ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .wordmark-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--cyan);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .wordmark h1 {
+      font-size: 22px;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin-right: auto;
+    }
+
+    #last-synced-label {
+      font-size: 11px;
+      color: var(--text-3);
+      font-family: 'Roboto', sans-serif;
+      font-weight: 400;
+    }
+
+    #order-count {
+      font-size: 11px;
+      color: var(--text-3);
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, opacity 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--cyan);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,194,232,.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--cyan-dark);
+      box-shadow: 0 4px 12px rgba(0,194,232,.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Toolbar ─────────────────────────────────────────────── */
+    .toolbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toolbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+      max-width: 340px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--text-3);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input::placeholder { color: var(--text-3); }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0,194,232,.12);
+      background: var(--surface);
+    }
+
+    .toolbar-filters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      font-family: 'Roboto', sans-serif;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .filter-chip input[type="checkbox"] { display: none; }
+
+    .filter-chip:has(input:checked),
+    .filter-chip.active {
+      background: var(--cyan-light);
+      border-color: var(--cyan);
+      color: var(--cyan-dark);
+    }
+
+    .sort-select {
+      padding: 7px 30px 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      transition: border-color 0.15s;
+    }
+
+    .sort-select:focus {
+      outline: none;
+      border-color: var(--cyan);
+    }
+
+    /* ── Stats bar ───────────────────────────────────────────── */
+    .stats-bar {
+      max-width: 1280px;
+      margin: 24px auto 0;
+      padding: 0 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+
+    .stat-card:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card.clickable {
+      cursor: pointer;
+    }
+
+    .stat-card.clickable:hover {
+      transform: translateY(-1px);
+      border-color: var(--cyan);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-family: 'Omnes', sans-serif;
+      font-weight: 900;
+      font-size: 26px;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .stat-value.cyan { color: var(--cyan); }
+    .stat-value.small { font-size: 16px; }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 3px;
+    }
+
+    /* ── Main content ────────────────────────────────────────── */
+    .main {
+      max-width: 1280px;
+      margin: 24px auto 60px;
+      padding: 0 28px;
+    }
+
+    /* ── Table card ──────────────────────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      font-family: 'Roboto', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      padding: 13px 16px;
+      text-align: left;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    thead th:last-child { text-align: left; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody tr:hover { background: #fafbfc; }
+
+    tbody tr.failed-row { opacity: 0.55; }
+
+    td {
+      padding: 13px 16px;
+      vertical-align: middle;
+      font-size: 13px;
+    }
+
+    .row-fade { animation: rowIn 0.18s ease both; }
+    @keyframes rowIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+    /* Status badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .badge.delivered {
+      background: var(--green-bg);
+      color: #027a48;
+    }
+
+    .badge.delivered .badge-dot { background: var(--green); }
+
+    .badge.failed {
+      background: #f9fafb;
+      color: #9ca3af;
+    }
+
+    .badge.failed .badge-dot { background: #d1d5db; }
+
+    /* Venue cell */
+    .venue-link {
+      font-family: 'Omnes', sans-serif;
+      font-weight: 900;
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      text-align: left;
+      transition: color 0.12s;
+      max-width: 160px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+    }
+
+    .venue-link:hover { color: var(--cyan); }
+
+    /* Items cell */
+    .items-cell {
+      max-width: 220px;
+      color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: default;
+      position: relative;
+    }
+
+    .items-tooltip {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      background: var(--text);
+      color: #fff;
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      z-index: 100;
+      max-width: 320px;
+      white-space: normal;
+      box-shadow: var(--shadow);
+      pointer-events: none;
+    }
+
+    .items-cell:hover .items-tooltip { display: block; }
+
+    /* Total */
+    .total-cell {
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* Stars */
+    .stars-wrap {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      color: #d1d5db;
+      transition: color 0.1s, transform 0.1s;
+    }
+
+    .star-btn.filled { color: #f59e0b; }
+    .star-btn:hover  { transform: scale(1.2); }
+
+    /* Notes */
+    .notes-area {
+      width: 100%;
+      resize: none;
+      field-sizing: content;
+      min-height: 28px;
+      max-height: 80px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      font-family: 'Roboto', sans-serif;
+      font-size: 12px;
+      color: var(--text-2);
+      padding: 2px 0;
+      transition: border-color 0.15s;
+    }
+
+    .notes-area::placeholder { color: var(--text-3); }
+    .notes-area:focus {
+      outline: none;
+      border-bottom-color: var(--cyan);
+    }
+
+    /* ── Skeleton rows ───────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .skeleton-row td { padding: 16px; }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      background: var(--cyan-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+
+    .empty-state h2 {
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      color: var(--text-2);
+      max-width: 340px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    /* ── Error state ─────────────────────────────────────────── */
+    .error-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      text-align: center;
+    }
+
+    .error-state .error-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    .error-state h2 {
+      font-size: 18px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .error-state p {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+
+    .error-state code {
+      font-family: monospace;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      pointer-events: all;
+      animation: toastIn 0.25s cubic-bezier(.34,1.56,.64,1) both;
+      max-width: 380px;
+    }
+
+    .toast.out { animation: toastOut 0.2s ease both; }
+
+    @keyframes toastIn  { from { opacity: 0; transform: translateY(12px) scale(.95); } to { opacity: 1; transform: none; } }
+    @keyframes toastOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px) scale(.97); } }
+
+    .toast.success { background: #1a2e1e; color: #86efac; }
+    .toast.error   { background: #2d1010; color: #fca5a5; }
+    .toast.info    { background: var(--text); color: #e5e7eb; }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalIn 0.22s cubic-bezier(.34,1.3,.64,1) both;
+    }
+
+    @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .modal-header {
+      padding: 28px 28px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .modal-title-block { flex: 1; }
+
+    .modal-title-block h2 {
+      font-size: 26px;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .modal-title-block p {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-top: 4px;
+    }
+
+    .modal-close {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--text-2);
+      flex-shrink: 0;
+      transition: background 0.12s;
+    }
+
+    .modal-close:hover { background: var(--border); color: var(--text); }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-stat {
+      background: var(--surface);
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .modal-stat-value {
+      font-family: 'Omnes', sans-serif;
+      font-weight: 900;
+      font-size: 22px;
+      color: var(--text);
+    }
+
+    .modal-stat-label {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .modal-body {
+      overflow-y: auto;
+      padding: 20px 28px 28px;
+      flex: 1;
+    }
+
+    .modal-section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 12px;
+      margin-top: 20px;
+    }
+
+    .modal-section-title:first-child { margin-top: 0; }
+
+    .modal-order-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-order-row:last-child { border-bottom: none; }
+
+    .modal-order-date {
+      font-size: 11px;
+      color: var(--text-3);
+      white-space: nowrap;
+      width: 100px;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+
+    .modal-order-items {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.5;
+    }
+
+    .modal-order-total {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .modal-order-stars { display: flex; gap: 1px; }
+    .modal-mini-star { font-size: 13px; color: #d1d5db; }
+    .modal-mini-star.filled { color: #f59e0b; }
+
+    .item-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-2);
+      margin: 3px;
+    }
+
+    .item-chip-count {
+      background: var(--cyan-light);
+      color: var(--cyan-dark);
+      font-weight: 500;
+      font-family: 'Omnes', sans-serif;
+      font-weight: 900;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
   </style>
 </head>
-<body class="text-gray-200 font-sans min-h-screen">
+<body>
 
-  <!-- Header -->
-  <header class="sticky top-0 z-10 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#1f1f1f]">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4 flex-wrap">
-      <div class="flex items-center gap-3 mr-auto">
-        <span class="text-2xl">🍜</span>
-        <div>
-          <h1 class="text-base font-semibold text-white leading-none">Wolt Ratings</h1>
-          <p class="text-xs text-gray-500 mt-0.5" id="last-synced-label">Loading…</p>
-        </div>
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <a class="wordmark" href="#">
+        <div class="wordmark-icon">🍜</div>
+        <h1>Wolt Ratings</h1>
+      </a>
+      <div class="header-meta">
+        <span id="last-synced-label">Loading…</span>
+        <span id="order-count"></span>
       </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="export-btn" title="Download orders_db.json">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+    </div>
+  </header>
 
-      <!-- Search -->
-      <div class="relative">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+  <!-- ── Toolbar ─────────────────────────────────────────────── -->
+  <div class="toolbar">
+    <div class="toolbar-inner">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input
-          id="search-input"
-          type="text"
-          placeholder="Search venue or item…"
-          class="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg pl-9 pr-4 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-wolt w-64"
-        />
+        <input id="search-input" type="text" class="search-input" placeholder="Search venue or item…" />
       </div>
-
-      <!-- Filters -->
-      <div class="flex items-center gap-3 text-sm">
-        <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-200">
-          <input type="checkbox" id="hide-failed" class="accent-wolt" />
-          <span>Hide failed</span>
+      <div class="toolbar-filters">
+        <label class="filter-chip" id="chip-hide-failed">
+          <input type="checkbox" id="hide-failed" />
+          Hide failed
         </label>
-        <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-200">
-          <input type="checkbox" id="only-rated" class="accent-wolt" />
-          <span>Rated only</span>
+        <label class="filter-chip" id="chip-only-rated">
+          <input type="checkbox" id="only-rated" />
+          Rated only
         </label>
       </div>
-
-      <!-- Sort -->
-      <select id="sort-select" class="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-wolt">
+      <select id="sort-select" class="sort-select">
         <option value="date_desc">Newest first</option>
         <option value="date_asc">Oldest first</option>
         <option value="rating_desc">Highest rated</option>
         <option value="venue_asc">Venue A–Z</option>
       </select>
-
-      <div id="order-count" class="text-xs text-gray-600 whitespace-nowrap"></div>
     </div>
-  </header>
+  </div>
 
-  <!-- Main -->
-  <main class="max-w-7xl mx-auto px-6 py-6">
-
-    <!-- Empty / loading state -->
-    <div id="empty-state" class="hidden flex-col items-center justify-center py-32 text-center">
-      <div class="text-5xl mb-4">🍣</div>
-      <p class="text-gray-400 text-lg font-medium">No orders yet</p>
-      <p class="text-gray-600 text-sm mt-2">Install the extension, open wolt.com, and click <strong>Sync Now</strong>.</p>
+  <!-- ── Stats bar ───────────────────────────────────────────── -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Orders shown</div>
+      <div class="stat-value omnes" id="stat-count">—</div>
     </div>
-
-    <div id="loading-state" class="flex flex-col items-center justify-center py-32 text-center">
-      <div class="animate-spin text-4xl mb-4">⏳</div>
-      <p class="text-gray-500 text-sm">Loading orders…</p>
+    <div class="stat-card">
+      <div class="stat-label">Total spent</div>
+      <div class="stat-value omnes" id="stat-spent">—</div>
     </div>
-
-    <!-- Table -->
-    <div id="table-container" class="hidden">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-xs text-gray-500 uppercase tracking-wider">
-            <th class="text-left pb-3 pr-4 font-medium w-24">Status</th>
-            <th class="text-left pb-3 pr-4 font-medium w-32">Date</th>
-            <th class="text-left pb-3 pr-4 font-medium w-40">Venue</th>
-            <th class="text-left pb-3 pr-4 font-medium">Items</th>
-            <th class="text-right pb-3 pr-4 font-medium w-20">Total</th>
-            <th class="text-left pb-3 pr-4 font-medium w-36">Rating</th>
-            <th class="text-left pb-3 font-medium w-64">Notes</th>
-          </tr>
-        </thead>
-        <tbody id="orders-tbody"></tbody>
-      </table>
+    <div class="stat-card">
+      <div class="stat-label">Avg order value</div>
+      <div class="stat-value omnes" id="stat-avg-value">—</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg rating</div>
+      <div class="stat-value omnes cyan" id="stat-avg-rating">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top venue</div>
+      <div class="stat-value omnes small" id="stat-top-venue">—</div>
+    </div>
+    <div class="stat-card clickable" id="stat-unrated-card" title="Click to show unrated orders">
+      <div class="stat-label">Unrated</div>
+      <div class="stat-value omnes" id="stat-unrated">—</div>
+      <div class="stat-sub" id="stat-unrated-sub"></div>
+    </div>
+  </div>
 
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <main class="main">
+    <div class="table-card" id="table-card">
+
+      <!-- Skeleton loading -->
+      <div id="loading-state">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px">Status</th>
+              <th style="width:110px">Date</th>
+              <th style="width:160px">Venue</th>
+              <th>Items</th>
+              <th style="width:80px">Total</th>
+              <th style="width:120px">Rating</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="skeleton-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Error state -->
+      <div class="error-state" id="error-state">
+        <div class="error-icon">⚠️</div>
+        <h2>Can't reach the backend</h2>
+        <p>Start the server with <code>python backend/app.py</code> then refresh this page.</p>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🍣</div>
+        <h2>No orders yet</h2>
+        <p>Install the browser extension, open wolt.com, and click <strong>Sync Now</strong> to import your order history.</p>
+      </div>
+
+      <!-- Orders table -->
+      <div id="table-container" class="hidden">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px">Status</th>
+              <th style="width:110px">Date</th>
+              <th style="width:160px">Venue</th>
+              <th>Items</th>
+              <th style="width:80px; text-align:right">Total</th>
+              <th style="width:130px">Rating</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
   </main>
+
+  <!-- ── Restaurant detail modal ─────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="venue-modal">
+      <div class="modal-header">
+        <div class="modal-title-block">
+          <h2 id="modal-venue-name">Restaurant</h2>
+          <p id="modal-venue-sub"></p>
+        </div>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-stats">
+        <div class="modal-stat">
+          <div class="modal-stat-value omnes" id="modal-stat-orders">—</div>
+          <div class="modal-stat-label">Orders</div>
+        </div>
+        <div class="modal-stat">
+          <div class="modal-stat-value omnes" id="modal-stat-spent">—</div>
+          <div class="modal-stat-label">Total spent</div>
+        </div>
+        <div class="modal-stat">
+          <div class="modal-stat-value omnes" id="modal-stat-rating" style="color:var(--cyan)">—</div>
+          <div class="modal-stat-label">Avg rating</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section-title">Most ordered items</div>
+        <div id="modal-items-list"></div>
+        <div class="modal-section-title">Order history</div>
+        <div id="modal-orders-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast container ─────────────────────────────────────── -->
+  <div id="toast-container"></div>
 
   <script src="app.js"></script>
 </body>
