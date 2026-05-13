@@ -164,9 +164,15 @@ function updateStats(list) {
   avgRatingStar.style.display = avgRating !== "—" ? "inline" : "none";
 
   const venueCount = {};
-  for (const o of list) venueCount[o.venue_name] = (venueCount[o.venue_name] || 0) + 1;
+  const venueSpent = {};
+  for (const o of list) {
+    venueCount[o.venue_name] = (venueCount[o.venue_name] || 0) + 1;
+    venueSpent[o.venue_name] = (venueSpent[o.venue_name] || 0) + parseAmount(o.total_amount);
+  }
   const topVenue = Object.entries(venueCount).sort((a, b) => b[1] - a[1])[0];
   document.getElementById("stat-top-venue").textContent = topVenue ? topVenue[0] : "—";
+  document.getElementById("stat-top-venue-sub").textContent = topVenue
+    ? `${topVenue[1]} order${topVenue[1] !== 1 ? "s" : ""} · ${fmtEuro(venueSpent[topVenue[0]])}` : "";
 
   const unratedCount = list.filter(o => !o.user_custom_data?.rating).length;
   document.getElementById("stat-unrated").textContent = unratedCount;
