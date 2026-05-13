@@ -27,11 +27,11 @@ def make_icon(size):
     pad = 1
     draw.ellipse([pad, pad, size - pad - 1, size - pad - 1], fill=CYAN)
 
-    # Star — outer radius ~44% of size, inner ~18%
+    # Star — outer 34% of size, inner 14%; nudge cy down slightly to visually centre
     cx     = size / 2
-    cy     = size / 2
-    outer  = size * 0.44
-    inner  = size * 0.18
+    cy     = size / 2 + size * 0.03
+    outer  = size * 0.34
+    inner  = size * 0.14
     pts    = star_points(cx, cy, outer, inner)
     draw.polygon(pts, fill=WHITE)
 
