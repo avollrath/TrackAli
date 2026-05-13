@@ -5,8 +5,8 @@ import zlib
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-CYAN   = (0, 194, 232, 255)
-YELLOW = (245, 158, 11, 255)
+CYAN  = (0, 194, 232, 255)
+WHITE = (255, 255, 255, 255)
 
 
 def star_points(cx, cy, outer, inner, points=5):
@@ -23,17 +23,17 @@ def make_icon(size):
     img  = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Cyan circle — fill entire canvas with a bit of padding
-    pad = max(1, size // 16)
+    # Cyan circle — 1px padding so antialiasing isn't clipped
+    pad = 1
     draw.ellipse([pad, pad, size - pad - 1, size - pad - 1], fill=CYAN)
 
-    # Star — outer radius ~38% of size, inner ~15%
+    # Star — outer radius ~44% of size, inner ~18%
     cx     = size / 2
     cy     = size / 2
-    outer  = size * 0.38
-    inner  = size * 0.15
+    outer  = size * 0.44
+    inner  = size * 0.18
     pts    = star_points(cx, cy, outer, inner)
-    draw.polygon(pts, fill=YELLOW)
+    draw.polygon(pts, fill=WHITE)
 
     return img
 
