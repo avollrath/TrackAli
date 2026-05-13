@@ -50,6 +50,7 @@ const emptyState       = document.getElementById("empty-state");
 const errorState       = document.getElementById("error-state");
 const loadingState     = document.getElementById("loading-state");
 const skeletonTbody    = document.getElementById("skeleton-tbody");
+const yearSelect       = document.getElementById("year-select");
 const exportBtn        = document.getElementById("export-btn");
 const importBtn        = document.getElementById("import-btn");
 const importFile       = document.getElementById("import-file");
@@ -92,6 +93,7 @@ async function loadOrders() {
     allOrders = (data.orders || []).filter(o => o.status === "delivered");
     lastSynced = data.last_synced || null;
     updateLastSynced();
+    populateYearSelect();
     renderTable();
   } catch {
     loadingState.style.display = "none";
@@ -112,15 +114,24 @@ function updateLastSynced() {
   lastSyncedLabel.textContent = `Last synced ${label}`;
 }
 
+function populateYearSelect() {
+  const current = yearSelect.value;
+  const years = [...new Set(allOrders.map(o => o.received_at?.split("/")[2]?.split(",")[0]).filter(Boolean))].sort((a, b) => b - a);
+  yearSelect.innerHTML = `<option value="all">All years</option>` +
+    years.map(y => `<option value="${y}"${y === current ? " selected" : ""}>${y}</option>`).join("");
+}
+
 function getFiltered() {
   const q         = searchInput.value.trim().toLowerCase();
   const onlyRated = onlyRatedChk.checked;
   const sort      = sortSelect.value;
+  const year      = yearSelect.value;
 
   // allOrders already excludes failed orders at load time
   let list = allOrders.filter(o => {
     if (onlyRated && (!o.user_custom_data || o.user_custom_data.rating === 0)) return false;
     if (q && !`${o.venue_name} ${o.items}`.toLowerCase().includes(q)) return false;
+    if (year !== "all" && !o.received_at?.includes(`/${year},`)) return false;
     return true;
   });
 
@@ -564,6 +575,7 @@ function escHtml(str) {
 // ---------------------------------------------------------------------------
 searchInput.addEventListener("input", () => renderTable(true));
 sortSelect.addEventListener("change", () => renderTable(true));
+yearSelect.addEventListener("change", () => renderTable(true));
 
 onlyRatedChk.addEventListener("change", () => {
   onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
