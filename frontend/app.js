@@ -168,7 +168,7 @@ function buildRow(order) {
     <td style="color:var(--text-3);font-size:12px;white-space:nowrap">${escHtml(order.received_at)}</td>
     <td><button class="venue-link" data-venue="${escHtml(order.venue_name)}" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
     <td class="items-cell">
-      ${order.items.split(", ").filter(Boolean).map(i => `<div class="item-line">${escHtml(i.trim())}</div>`).join("")}
+      ${splitItems(order.items).map(i => `<div class="item-line">${escHtml(i)}</div>`).join("")}
     </td>
     <td class="total-cell" style="text-align:right">${escHtml(order.total_amount)}</td>
     <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(ucd.rating, order.purchase_id)}</div></td>
@@ -259,7 +259,7 @@ function openModal(venueName) {
   const itemFreq = {};
   for (const o of venueOrders) {
     if (!o.items) continue;
-    for (const item of o.items.split(",").map(s => s.trim()).filter(Boolean)) {
+    for (const item of splitItems(o.items)) {
       itemFreq[item] = (itemFreq[item] || 0) + 1;
     }
   }
@@ -383,6 +383,12 @@ function parseDate(str) {
   if (!datePart) return 0;
   const [d, m, y] = datePart.split("/");
   return new Date(`${y}-${m}-${d}T${timePart || "00:00"}:00`).getTime();
+}
+
+function splitItems(str) {
+  if (!str) return [];
+  // Wolt stores items as "Item A and Item B and Item C"
+  return str.split(" and ").map(s => s.trim()).filter(Boolean);
 }
 
 function escHtml(str) {
