@@ -12,13 +12,16 @@ It's two things working together: a **Chrome extension** that silently captures 
 
 ## What You Can Do
 
-- **Search and filter** orders by venue name or item
-- **Sort** by date, rating, or order value
-- **Rate** any order with 1–5 stars
-- **Add notes** per order — reminders, recurring favourites, complaints
-- **Click a venue** to see a modal with total spend, average rating, most ordered items, and your full visit history
+- **Search** orders by venue name or item
+- **Sort** by date, rating, total value, or venue name
+- **Filter by year** to focus on a specific period
+- **Rate** any order with 1–5 stars and add a personal note
+- **Per venue view** — collapse the list to one row per restaurant, showing total spend, average rating across all visits, and the date range of your orders
+- **Highest rated sort** weights venues by both average rating and number of ratings, so a venue with 10 five-star visits ranks above one with 2
+- **Click any venue** to open a detail modal with total spend, average rating, most ordered items, and full visit history with per-order star ratings
+- **Stats bar** shows live totals for orders, spend, average order value, average rating, top venue, and unrated count — all reactive to your active filters
 - **Import / export** your `orders_db.json` to back it up or move it between machines
-- **Demo mode** — toggle in the header to preview the app with example data without touching your real orders
+- **Demo mode** — toggle in the header to load example data without touching your real orders
 
 ---
 
