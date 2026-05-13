@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
@@ -7,8 +8,9 @@ from flask_cors import CORS
 app = Flask(__name__, static_folder="../frontend", static_url_path="")
 CORS(app)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "example_orders.json")
+DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+DB_LOCK = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -23,8 +25,20 @@ def load_db():
 
 
 def save_db(db):
-    with open(DB_PATH, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    tmp_path = f"{DB_PATH}.tmp"
+    with DB_LOCK:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(db, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, DB_PATH)
+
+
+def get_json_body():
+    if not request.is_json:
+        return None, (jsonify({"error": "Invalid JSON"}), 400)
+    try:
+        return request.get_json(), None
+    except Exception:
+        return None, (jsonify({"error": "Invalid JSON"}), 400)
 
 
 def parse_order(raw: dict) -> dict:
@@ -88,7 +102,9 @@ def serve_font(filename):
 
 @app.route("/sync", methods=["POST"])
 def sync():
-    payload = request.get_json(force=True)
+    payload, error = get_json_body()
+    if error:
+        return error
     if not payload:
         return jsonify({"error": "Empty payload"}), 400
 
@@ -130,7 +146,9 @@ def orders():
 
 @app.route("/update", methods=["POST"])
 def update():
-    body = request.get_json(force=True)
+    body, error = get_json_body()
+    if error:
+        return error
     if not body:
         return jsonify({"error": "Empty body"}), 400
 
@@ -155,7 +173,9 @@ def update():
 
 @app.route("/import", methods=["POST"])
 def import_db():
-    payload = request.get_json(force=True)
+    payload, error = get_json_body()
+    if error:
+        return error
     if not payload or "orders" not in payload:
         return jsonify({"error": "Expected JSON with 'orders' array"}), 400
 
