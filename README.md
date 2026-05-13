@@ -25,7 +25,8 @@ wolt-ratings/
 │   └── icons/
 │       ├── icon16.png
 │       ├── icon48.png
-│       └── icon128.png
+│       ├── icon128.png
+│       └── logo.svg
 ├── frontend/
 │   ├── app.js
 │   ├── favicon.ico
@@ -33,6 +34,8 @@ wolt-ratings/
 │   ├── fonts.css
 │   ├── index.html
 │   ├── styles.css
+│   ├── assets/
+│   │   └── logo.svg
 │   └── fonts/
 │       └── Voltymore.ttf
 └── screenshots/

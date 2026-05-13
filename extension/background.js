@@ -23,9 +23,9 @@ function setBadgeReady() {
   chrome.action.setBadgeBackgroundColor({ color: "#22c55e" });
   chrome.action.setIcon({
     path: {
-      16: "icons/icon16.png",
-      48: "icons/icon48.png",
-      128: "icons/icon128.png",
+      16: "icons/logo.svg",
+      48: "icons/logo.svg",
+      128: "icons/logo.svg",
     },
   });
 }
@@ -44,7 +44,7 @@ function setBadgeExpired() {
       const imageData = ctx.getImageData(0, 0, size, size);
       chrome.action.setIcon({ imageData: { [size]: imageData } });
     };
-    img.src = chrome.runtime.getURL(`icons/icon${size}.png`);
+    img.src = chrome.runtime.getURL("icons/logo.svg");
   }
 }
 
@@ -142,7 +142,7 @@ async function handleSync() {
 
   do {
     const url = new URL("https://consumer-api.wolt.com/order-tracking-api/v1/order_history/");
-    url.searchParams.set("limit", "100");
+    url.searchParams.set("limit", "1000");
     if (cursor) url.searchParams.set("cursor", cursor);
 
     const woltRes = await fetch(url.toString(), { headers: reqHeaders });
