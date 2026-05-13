@@ -625,7 +625,6 @@
 
     .star-btn:hover { transform: scale(1.2); }
 
-    .modal-order-stars { display: flex; gap: 1px; align-items: center; }
     .modal-mini-star { display: flex; align-items: center; line-height: 0; }
 
     /* Notes */
@@ -893,7 +892,7 @@
 
     .modal-order-row {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
       padding: 12px 0;
       border-bottom: 1px solid var(--border);
@@ -905,9 +904,8 @@
       font-size: 11px;
       color: var(--color-text-subtle);
       white-space: nowrap;
-      width: 100px;
+      width: 120px;
       flex-shrink: 0;
-      padding-top: 1px;
     }
 
     .modal-order-items {
@@ -922,6 +920,14 @@
       font-weight: 500;
       color: var(--text);
       white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .modal-order-stars {
+      display: flex;
+      gap: 1px;
+      align-items: center;
+      flex-shrink: 0;
     }
 
     .modal-item-line {
@@ -939,14 +945,6 @@
       font-size: 11px;
       color: var(--color-text-subtle);
       margin-top: 4px;
-    }
-
-    .modal-order-side {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-      flex-shrink: 0;
     }
 
     .item-chip {

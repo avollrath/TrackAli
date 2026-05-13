@@ -319,7 +319,7 @@ function openModal(venueName) {
     .filter(o => o.venue_name === venueName)
     .sort((a, b) => compareDates(b.received_at, a.received_at));
   const stats = getVenueStats(venueOrders, venueName);
-  renderModal(venueName, stats, buildModalOrderHistory(venueOrders));
+  renderModal(venueName, stats, buildModalOrderHistory(venueOrders), venueOrders);
   modalBackdrop.classList.add("open");
   document.body.style.overflow = "hidden";
 }
@@ -348,31 +348,70 @@ function getVenueStats(orders, venueName) {
   };
 }
 
+function buildModalStars(rating, purchaseId) {
+  return [1, 2, 3, 4, 5].map(v =>
+    `<button class="star-btn${v <= rating ? " filled" : ""}" data-id="${escHtml(purchaseId)}" data-value="${v}" title="${v} star${v > 1 ? "s" : ""}">${starSvg(v <= rating, 26)}</button>`
+  ).join("");
+}
+
+function bindModalStars(container, order) {
+  const userCustomData = order.user_custom_data;
+  container.querySelectorAll(".star-btn").forEach(btn => {
+    btn.addEventListener("mouseenter", () => {
+      const hv = parseInt(btn.dataset.value, 10);
+      container.querySelectorAll(".star-btn").forEach(b =>
+        b.innerHTML = starSvg(parseInt(b.dataset.value, 10) <= hv, 26)
+      );
+    });
+    btn.addEventListener("mouseleave", () => {
+      container.querySelectorAll(".star-btn").forEach(b =>
+        b.innerHTML = starSvg(parseInt(b.dataset.value, 10) <= userCustomData.rating, 26)
+      );
+    });
+    btn.addEventListener("click", () => {
+      const rating = parseInt(btn.dataset.value, 10);
+      const previousRating = userCustomData.rating;
+      userCustomData.rating = rating;
+      container.innerHTML = buildModalStars(rating, order.purchase_id);
+      bindModalStars(container, order);
+      // Keep main table in sync
+      const tableStarsWrap = document.getElementById(`stars-${order.purchase_id}`);
+      if (tableStarsWrap) {
+        tableStarsWrap.innerHTML = buildStars(rating, order.purchase_id);
+        const tr = tableStarsWrap.closest("tr");
+        if (tr) bindStars(tr, order);
+      }
+      updateStats(currentList);
+      saveUpdate(order.purchase_id, { rating }, () => {
+        userCustomData.rating = previousRating;
+        container.innerHTML = buildModalStars(previousRating, order.purchase_id);
+        bindModalStars(container, order);
+      });
+    });
+  });
+}
+
 function buildModalOrderHistory(orders) {
   return orders.map(order => {
-    const userCustomData = order.user_custom_data || {};
-    const stars = [1, 2, 3, 4, 5].map(v =>
-      `<span class="modal-mini-star">${starSvg(v <= userCustomData.rating, 14)}</span>`
-    ).join("");
+    const userCustomData = order.user_custom_data || { rating: 0, notes: "" };
+    order.user_custom_data = userCustomData;
     const itemLines = splitItems(order.items)
       .map(item => `<div class="modal-item-line">${escHtml(item)}</div>`)
       .join("") || escHtml(order.items || "-");
     return `
-      <div class="modal-order-row">
+      <div class="modal-order-row" data-purchase-id="${escHtml(order.purchase_id)}">
         <div class="modal-order-date">${escHtml(order.received_at)}</div>
         <div class="modal-order-items">
           ${itemLines}
           ${userCustomData.notes ? `<div class="modal-order-note">${escHtml(userCustomData.notes)}</div>` : ""}
         </div>
-        <div class="modal-order-side">
-          <div class="modal-order-total">${fmtEuro(parseAmount(order.total_amount))}</div>
-          <div class="modal-order-stars">${stars}</div>
-        </div>
+        <div class="modal-order-total">${fmtEuro(parseAmount(order.total_amount))}</div>
+        <div class="modal-order-stars" id="modal-stars-${escHtml(order.purchase_id)}">${buildModalStars(userCustomData.rating, order.purchase_id)}</div>
       </div>`;
   }).join("");
 }
 
-function renderModal(venue, stats, historyHtml) {
+function renderModal(venue, stats, historyHtml, venueOrders) {
   document.getElementById("modal-venue-name").textContent = venue;
   document.getElementById("modal-venue-sub").textContent = `First order ${stats.firstOrder}`;
   document.getElementById("modal-stat-orders").textContent = stats.orderCount;
@@ -388,6 +427,11 @@ function renderModal(venue, stats, historyHtml) {
         </span>`).join("")
     : `<p class="modal-empty-text">No item data available.</p>`;
   document.getElementById("modal-orders-list").innerHTML = historyHtml;
+
+  venueOrders.forEach(order => {
+    const container = document.getElementById(`modal-stars-${order.purchase_id}`);
+    if (container) bindModalStars(container, order);
+  });
 }
 function closeModal() {
   modalBackdrop.classList.remove("open");
