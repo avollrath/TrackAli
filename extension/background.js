@@ -18,7 +18,11 @@ function isTokenValid(auth) {
   return payload.exp > Math.floor(Date.now() / 1000) + 60;
 }
 
+let badgeState = null; // "ready" | "expired" | null
+
 function setBadgeReady() {
+  if (badgeState === "ready") return;
+  badgeState = "ready";
   chrome.action.setBadgeText({ text: "" });
   chrome.action.setIcon({
     path: {
@@ -30,6 +34,8 @@ function setBadgeReady() {
 }
 
 function setBadgeExpired() {
+  if (badgeState === "expired") return;
+  badgeState = "expired";
   chrome.action.setBadgeText({ text: "" });
   chrome.action.setIcon({
     path: {
@@ -56,6 +62,7 @@ chrome.storage.session.get("wolt_auth", (data) => {
 });
 
 // Fallback: intercept Wolt API request headers when service worker is alive
+let lastSeenAuth = null;
 chrome.webRequest.onSendHeaders.addListener(
   (details) => {
     let auth = null;
@@ -65,7 +72,8 @@ chrome.webRequest.onSendHeaders.addListener(
       if (name === "authorization" && header.value?.startsWith("Bearer ")) auth = header.value;
       if (name === "wolt-session-id") sessionId = header.value;
     }
-    if (auth && isTokenValid(auth)) {
+    if (auth && isTokenValid(auth) && auth !== lastSeenAuth) {
+      lastSeenAuth = auth;
       chrome.storage.session.set({
         wolt_auth: auth,
         ...(sessionId && { wolt_session_id: sessionId }),
@@ -83,6 +91,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Primary credential capture: content script read token from localStorage
   if (message.action === "storeCredentials") {
     if (!isTokenValid(message.authorization)) return;
+    if (message.authorization === lastSeenAuth) return;
+    lastSeenAuth = message.authorization;
     const update = {
       wolt_auth: message.authorization,
       captured_at: Date.now(),
