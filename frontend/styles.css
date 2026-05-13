@@ -410,7 +410,7 @@
       text-align: center;
       z-index: 150;
       color: var(--color-white);
-      
+      box-shadow: 0 -4px 16px rgba(0,0,0,.12);
     }
 
     .site-footer p {
