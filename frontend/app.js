@@ -158,10 +158,8 @@ function updateStats(list) {
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
     : "—";
-  const avgRatingEl = document.getElementById("stat-avg-rating");
-  const avgRatingStar = document.getElementById("stat-avg-rating-star");
-  avgRatingEl.childNodes[0].textContent = avgRating !== "—" ? avgRating : "—";
-  avgRatingStar.style.display = avgRating !== "—" ? "inline" : "none";
+  document.getElementById("stat-avg-rating-text").textContent = avgRating !== "—" ? avgRating : "—";
+  document.getElementById("stat-avg-rating-star").style.display = avgRating !== "—" ? "inline" : "none";
 
   const venueCount = {};
   const venueSpent = {};
@@ -284,10 +282,8 @@ function openModal(venueName) {
     `First order ${venueOrders[venueOrders.length - 1]?.received_at || ""}`;
   document.getElementById("modal-stat-orders").textContent = venueOrders.length;
   document.getElementById("modal-stat-spent").textContent  = fmtEuro(spent);
-  const modalRatingEl = document.getElementById("modal-stat-rating");
-  const modalRatingStar = document.getElementById("modal-stat-rating-star");
-  modalRatingEl.childNodes[0].textContent = avgRating !== "—" ? avgRating : "—";
-  modalRatingStar.style.display = avgRating !== "—" ? "inline" : "none";
+  document.getElementById("modal-stat-rating-text").textContent = avgRating !== "—" ? avgRating : "—";
+  document.getElementById("modal-stat-rating-star").style.display = avgRating !== "—" ? "inline" : "none";
 
   // Item frequency
   const itemFreq = {};
