@@ -157,8 +157,10 @@ function updateStats(list) {
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
     : "—";
-  document.getElementById("stat-avg-rating").textContent =
-    avgRating !== "—" ? `${avgRating} ★` : "—";
+  const avgRatingEl = document.getElementById("stat-avg-rating");
+  const avgRatingStar = document.getElementById("stat-avg-rating-star");
+  avgRatingEl.childNodes[0].textContent = avgRating !== "—" ? avgRating : "—";
+  avgRatingStar.style.display = avgRating !== "—" ? "inline" : "none";
 
   const venueCount = {};
   for (const o of list) venueCount[o.venue_name] = (venueCount[o.venue_name] || 0) + 1;
