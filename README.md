@@ -4,44 +4,50 @@
 
 Wolt Ratings is a local-first Flask app plus Chrome extension that syncs your Wolt order history to `backend/orders_db.json`, then lets you search, sort, rate, annotate, import, and export orders from a browser dashboard served at `http://localhost:5000`.
 
+<p align="center">
+  <img src="screenshots/dashboard.jpg" alt="Wolt Ratings dashboard showing order stats, filters, ratings, notes, and order history" width="90%" />
+  <br />
+  <em>Dashboard view: filter, sort, rate, and annotate synced Wolt orders from one local interface.</em>
+</p>
+
 ## Project Structure
 
 ```text
 wolt-ratings/
-├── .gitignore
-├── README.md
-├── backend/
-│   ├── app.py
-│   ├── example_orders.json
-│   └── requirements.txt
-├── extension/
-│   ├── background.js
-│   ├── content.js
-│   ├── generate_icons.py
-│   ├── manifest.json
-│   ├── popup.css
-│   ├── popup.html
-│   ├── popup.js
-│   └── icons/
-│       ├── icon16.png
-│       ├── icon48.png
-│       ├── icon128.png
-│       └── logo.svg
-├── frontend/
-│   ├── app.js
-│   ├── favicon.ico
-│   ├── favicon.png
-│   ├── fonts.css
-│   ├── index.html
-│   ├── styles.css
-│   ├── assets/
-│   │   └── logo.svg
-│   └── fonts/
-│       └── Voltymore.ttf
-└── screenshots/
-    ├── dashboard.jpg
-    ├── extension.jpg
-    └── venue_modal.jpg
+|-- .gitignore
+|-- README.md
+|-- backend/
+|   |-- app.py
+|   |-- example_orders.json
+|   `-- requirements.txt
+|-- extension/
+|   |-- background.js
+|   |-- content.js
+|   |-- generate_icons.py
+|   |-- manifest.json
+|   |-- popup.css
+|   |-- popup.html
+|   |-- popup.js
+|   `-- icons/
+|       |-- icon16.png
+|       |-- icon48.png
+|       |-- icon128.png
+|       `-- logo.svg
+|-- frontend/
+|   |-- app.js
+|   |-- favicon.ico
+|   |-- favicon.png
+|   |-- fonts.css
+|   |-- index.html
+|   |-- styles.css
+|   |-- assets/
+|   |   `-- logo.svg
+|   `-- fonts/
+|       `-- Voltymore.ttf
+`-- screenshots/
+    |-- dashboard.jpg
+    |-- extension.jpg
+    `-- venue_modal.jpg
 ```
 
 `backend/orders_db.json` is created locally by sync/import and is gitignored.
@@ -62,6 +68,12 @@ The backend listens on `http://localhost:5000` and serves the dashboard from `fr
 3. Click Load unpacked.
 4. Select the `extension/` folder.
 
+<p align="center">
+  <img src="screenshots/extension.jpg" alt="Wolt Ratings extension popup showing token capture, backend status, and sync button" width="320" />
+  <br />
+  <em>Extension popup: confirms session capture and backend health before starting a sync.</em>
+</p>
+
 ## First Sync Workflow
 
 1. Start the backend with `python backend/app.py`.
@@ -69,6 +81,12 @@ The backend listens on `http://localhost:5000` and serves the dashboard from `fr
 3. Open the extension popup and confirm the token indicator is green.
 4. Click Sync Now.
 5. Open `http://localhost:5000` to use the dashboard.
+
+<p align="center">
+  <img src="screenshots/venue_modal.jpg" alt="Venue detail modal with restaurant stats, most ordered items, and order history" width="55%" />
+  <br />
+  <em>Venue detail modal: click a restaurant to review spend, average rating, frequent items, and past notes.</em>
+</p>
 
 ## Troubleshooting Token Capture
 
@@ -87,7 +105,7 @@ If the token indicator stays yellow, reload `wolt.com`, open your Wolt order his
       "venue_name": "Restaurant name",
       "received_at": "13/05/2026, 19:30",
       "items": "Item one and Item two",
-      "total_amount": "24,50€",
+      "total_amount": "24,50 EUR",
       "status": "delivered",
       "user_custom_data": {
         "rating": 4,
@@ -205,4 +223,4 @@ Success:
 
 ## Pagination
 
-The extension fetches Wolt order history with `limit=100`. After each page, it checks for cursor fields such as `next_cursor`, `nextCursor`, `cursor_next`, or `next`; when a cursor exists, it requests the next page with `cursor=<value>&limit=100`. If the API response has no cursor field, sync stops after the first page.
+The extension fetches Wolt order history with `limit=1000`. After each page, it checks for cursor fields such as `next_cursor`, `nextCursor`, `cursor_next`, or `next`; when a cursor exists, it requests the next page with `cursor=<value>&limit=1000`. If the API response has no cursor field, sync stops after the first page.
