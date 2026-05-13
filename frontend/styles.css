@@ -629,7 +629,7 @@
 
     /* Notes */
     .notes-area {
-      width: 100%;
+      width: 200px;
       resize: none;
       field-sizing: content;
       min-height: 28px;
@@ -643,6 +643,9 @@
       color: var(--color-text-muted);
       padding: 2px 0;
       transition: border-color 0.15s;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
     }
 
     .notes-area::placeholder { color: var(--color-text-subtle); }
