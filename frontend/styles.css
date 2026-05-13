@@ -549,6 +549,12 @@
       margin-top: 1px;
     }
 
+    .order-date-cell {
+      color: var(--text-3);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     /* Total */
     .total-cell {
       font-weight: 500;
@@ -878,6 +884,25 @@
       font-size: 13px;
       color: var(--text-2);
       line-height: 1.7;
+    }
+
+    .modal-empty-text {
+      color: var(--text-3);
+      font-size: 13px;
+    }
+
+    .modal-order-note {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 4px;
+    }
+
+    .modal-order-side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
     }
 
     .item-chip {

@@ -1,4 +1,28 @@
-const API = "http://localhost:5000";
+const API_BASE = "http://localhost:5000";
+
+class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    signal: options.signal || AbortSignal.timeout(8000),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {}
+    throw new ApiError(message, res.status);
+  }
+  return res;
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -60,8 +84,7 @@ function buildSkeletonRows(n = 8) {
 async function loadOrders() {
   buildSkeletonRows();
   try {
-    const res = await fetch(`${API}/orders`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await apiFetch("/orders");
     const data = await res.json();
     // Always exclude failed orders
     allOrders = (data.orders || []).filter(o => o.status === "delivered");
@@ -133,7 +156,14 @@ function renderTable(resetScroll = true) {
 function renderRows() {
   tbody.innerHTML = "";
   const slice = currentList.slice(0, visibleCount);
-  for (const order of slice) tbody.appendChild(buildRow(order));
+  for (const order of slice) {
+    const row = document.createElement("tr");
+    row.className = "row-fade";
+    row.dataset.id = order.purchase_id;
+    row.innerHTML = renderRowHtml(order);
+    bindRowEvents(row, order);
+    tbody.appendChild(row);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -149,21 +179,21 @@ const scrollObserver = new IntersectionObserver((entries) => {
 if (scrollSentinel) scrollObserver.observe(scrollSentinel);
 
 // ---------------------------------------------------------------------------
-// Stats — delivered only (failed already excluded from allOrders)
+// Stats - delivered only (failed already excluded from allOrders)
 // ---------------------------------------------------------------------------
 function updateStats(list) {
   const spent = list.reduce((sum, o) => sum + parseAmount(o.total_amount), 0);
   document.getElementById("stat-count").textContent      = list.length;
-  document.getElementById("stat-spent").textContent      = list.length ? fmtEuro(spent) : "—";
+  document.getElementById("stat-spent").textContent      = list.length ? fmtEuro(spent) : "-";
   document.getElementById("stat-avg-value").textContent  =
-    list.length ? fmtEuro(spent / list.length) : "—";
+    list.length ? fmtEuro(spent / list.length) : "-";
 
   const rated = list.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
-    : "—";
-  document.getElementById("stat-avg-rating-text").textContent = avgRating !== "—" ? avgRating : "—";
-  document.getElementById("stat-avg-rating-star").style.display = avgRating !== "—" ? "inline" : "none";
+    : "-";
+  document.getElementById("stat-avg-rating-text").textContent = avgRating !== "-" ? avgRating : "-";
+  document.getElementById("stat-avg-rating-star").style.display = avgRating !== "-" ? "inline" : "none";
 
   const venueCount = {};
   const venueSpent = {};
@@ -172,14 +202,14 @@ function updateStats(list) {
     venueSpent[o.venue_name] = (venueSpent[o.venue_name] || 0) + parseAmount(o.total_amount);
   }
   const topVenue = Object.entries(venueCount).sort((a, b) => b[1] - a[1])[0];
-  document.getElementById("stat-top-venue").textContent = topVenue ? topVenue[0] : "—";
+  document.getElementById("stat-top-venue").textContent = topVenue ? topVenue[0] : "-";
   document.getElementById("stat-top-venue-sub").textContent = topVenue
-    ? `${topVenue[1]} order${topVenue[1] !== 1 ? "s" : ""} · ${fmtEuro(venueSpent[topVenue[0]])}` : "";
+    ? `${topVenue[1]} order${topVenue[1] !== 1 ? "s" : ""} - ${fmtEuro(venueSpent[topVenue[0]])}` : "";
 
   const unratedCount = list.filter(o => !o.user_custom_data?.rating).length;
   document.getElementById("stat-unrated").textContent = unratedCount;
   document.getElementById("stat-unrated-sub").textContent =
-    unratedCount > 0 ? "click to review" : "all rated ✓";
+    unratedCount > 0 ? "click to review" : "all rated";
 }
 
 function parseAmount(str) {
@@ -195,37 +225,40 @@ function fmtEuro(amount) {
 // ---------------------------------------------------------------------------
 // Row builder
 // ---------------------------------------------------------------------------
-function buildRow(order) {
-  const ucd = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
-  const tr  = document.createElement("tr");
-  tr.className = "row-fade";
-  tr.dataset.id = order.purchase_id;
-
-  tr.innerHTML = `
-    <td style="color:var(--text-3);font-size:12px;white-space:nowrap">${escHtml(order.received_at)}</td>
+function renderRowHtml(order) {
+  const userCustomData = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
+  return `
+    <td class="order-date-cell">${escHtml(order.received_at)}</td>
     <td><button class="venue-link" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
     <td class="items-cell">
       ${splitItems(order.items).map(i => `<div class="item-line">${escHtml(i)}</div>`).join("")}
     </td>
-    <td class="total-cell" style="text-align:right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
-    <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(ucd.rating, order.purchase_id)}</div></td>
+    <td class="total-cell text-right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
+    <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(userCustomData.rating, order.purchase_id)}</div></td>
     <td>
-      <textarea class="notes-area" placeholder="Add a note…" data-id="${escHtml(order.purchase_id)}">${escHtml(ucd.notes)}</textarea>
+      <textarea class="notes-area" placeholder="Add a note…" data-id="${escHtml(order.purchase_id)}">${escHtml(userCustomData.notes)}</textarea>
     </td>`;
+}
 
-  tr.querySelector(".venue-link").addEventListener("click", () => openModal(order.venue_name));
-  bindStars(tr, order);
+function bindRowEvents(rowElement, order) {
+  const userCustomData = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
+  order.user_custom_data = userCustomData;
 
-  const textarea = tr.querySelector("textarea");
+  rowElement.querySelector(".venue-link").addEventListener("click", () => openModal(order.venue_name));
+  bindStars(rowElement, order);
+
+  const textarea = rowElement.querySelector("textarea");
   textarea.addEventListener("blur", () => {
     const notes = textarea.value;
-    if (notes !== ucd.notes) {
-      ucd.notes = notes;
-      saveUpdate(order.purchase_id, { notes });
+    if (notes !== userCustomData.notes) {
+      const previousNotes = userCustomData.notes;
+      userCustomData.notes = notes;
+      saveUpdate(order.purchase_id, { notes }, () => {
+        userCustomData.notes = previousNotes;
+        textarea.value = previousNotes;
+      });
     }
   });
-
-  return tr;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +272,7 @@ function buildStars(current, id) {
 
 function bindStars(tr, order) {
   const wrap = tr.querySelector(".stars-wrap");
-  const ucd  = order.user_custom_data;
+  const userCustomData = order.user_custom_data;
 
   wrap.querySelectorAll(".star-btn").forEach(btn => {
     btn.addEventListener("mouseenter", () => {
@@ -252,16 +285,22 @@ function bindStars(tr, order) {
     btn.addEventListener("mouseleave", () => {
       wrap.querySelectorAll(".star-btn").forEach(b => {
         const v = parseInt(b.dataset.value, 10);
-        b.innerHTML = starSvg(v <= ucd.rating);
+        b.innerHTML = starSvg(v <= userCustomData.rating);
       });
     });
     btn.addEventListener("click", () => {
       const rating = parseInt(btn.dataset.value, 10);
-      ucd.rating = rating;
-      saveUpdate(order.purchase_id, { rating });
+      const previousRating = userCustomData.rating;
+      userCustomData.rating = rating;
       wrap.innerHTML = buildStars(rating, order.purchase_id);
       bindStars(tr, order);
       updateStats(currentList);
+      saveUpdate(order.purchase_id, { rating }, () => {
+        userCustomData.rating = previousRating;
+        wrap.innerHTML = buildStars(previousRating, order.purchase_id);
+        bindStars(tr, order);
+        updateStats(currentList);
+      });
     });
   });
 }
@@ -270,68 +309,80 @@ function bindStars(tr, order) {
 // Restaurant detail modal
 // ---------------------------------------------------------------------------
 function openModal(venueName) {
-  // Modal uses all delivered orders for that venue
   const venueOrders = allOrders
     .filter(o => o.venue_name === venueName)
     .sort((a, b) => compareDates(b.received_at, a.received_at));
-
-  const spent = venueOrders.reduce((s, o) => s + parseAmount(o.total_amount), 0);
-  const rated = venueOrders.filter(o => o.user_custom_data?.rating > 0);
-  const avgRating = rated.length
-    ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
-    : "—";
-
-  document.getElementById("modal-venue-name").textContent = venueName;
-  document.getElementById("modal-venue-sub").textContent  =
-    `First order ${venueOrders[venueOrders.length - 1]?.received_at || ""}`;
-  document.getElementById("modal-stat-orders").textContent = venueOrders.length;
-  document.getElementById("modal-stat-spent").textContent  = fmtEuro(spent);
-  document.getElementById("modal-stat-rating-text").textContent = avgRating !== "—" ? avgRating : "—";
-  document.getElementById("modal-stat-rating-star").style.display = avgRating !== "—" ? "inline" : "none";
-
-  // Item frequency
-  const itemFreq = {};
-  for (const o of venueOrders) {
-    for (const item of splitItems(o.items)) {
-      itemFreq[item] = (itemFreq[item] || 0) + 1;
-    }
-  }
-  const topItems = Object.entries(itemFreq).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  document.getElementById("modal-items-list").innerHTML = topItems.length
-    ? topItems.map(([name, count]) => `
-        <span class="item-chip">
-          ${escHtml(name)}
-          ${count > 1 ? `<span class="item-chip-count">×${count}</span>` : ""}
-        </span>`).join("")
-    : `<p style="color:var(--text-3);font-size:13px">No item data available.</p>`;
-
-  // Order history — items on separate rows
-  document.getElementById("modal-orders-list").innerHTML = venueOrders.map(o => {
-    const ucd   = o.user_custom_data || {};
-    const stars = [1,2,3,4,5].map(v =>
-      `<span class="modal-mini-star">${starSvg(v <= ucd.rating, 14)}</span>`
-    ).join("");
-    const itemLines = splitItems(o.items)
-      .map(i => `<div class="modal-item-line">${escHtml(i)}</div>`)
-      .join("") || escHtml(o.items || "—");
-    return `
-      <div class="modal-order-row">
-        <div class="modal-order-date">${escHtml(o.received_at)}</div>
-        <div class="modal-order-items">
-          ${itemLines}
-          ${ucd.notes ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">💬 ${escHtml(ucd.notes)}</div>` : ""}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-          <div class="modal-order-total">${fmtEuro(parseAmount(o.total_amount))}</div>
-          <div class="modal-order-stars">${stars}</div>
-        </div>
-      </div>`;
-  }).join("");
-
+  const stats = getVenueStats(venueOrders, venueName);
+  renderModal(venueName, stats, buildModalOrderHistory(venueOrders));
   modalBackdrop.classList.add("open");
   document.body.style.overflow = "hidden";
 }
 
+function getVenueStats(orders, venueName) {
+  const spent = orders.reduce((s, o) => s + parseAmount(o.total_amount), 0);
+  const rated = orders.filter(o => o.user_custom_data?.rating > 0);
+  const avgRating = rated.length
+    ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
+    : "-";
+
+  const itemFreq = {};
+  for (const order of orders) {
+    for (const item of splitItems(order.items)) {
+      itemFreq[item] = (itemFreq[item] || 0) + 1;
+    }
+  }
+
+  return {
+    venueName,
+    orderCount: orders.length,
+    spent,
+    avgRating,
+    firstOrder: orders[orders.length - 1]?.received_at || "",
+    topItems: Object.entries(itemFreq).sort((a, b) => b[1] - a[1]).slice(0, 10),
+  };
+}
+
+function buildModalOrderHistory(orders) {
+  return orders.map(order => {
+    const userCustomData = order.user_custom_data || {};
+    const stars = [1, 2, 3, 4, 5].map(v =>
+      `<span class="modal-mini-star">${starSvg(v <= userCustomData.rating, 14)}</span>`
+    ).join("");
+    const itemLines = splitItems(order.items)
+      .map(item => `<div class="modal-item-line">${escHtml(item)}</div>`)
+      .join("") || escHtml(order.items || "-");
+    return `
+      <div class="modal-order-row">
+        <div class="modal-order-date">${escHtml(order.received_at)}</div>
+        <div class="modal-order-items">
+          ${itemLines}
+          ${userCustomData.notes ? `<div class="modal-order-note">${escHtml(userCustomData.notes)}</div>` : ""}
+        </div>
+        <div class="modal-order-side">
+          <div class="modal-order-total">${fmtEuro(parseAmount(order.total_amount))}</div>
+          <div class="modal-order-stars">${stars}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function renderModal(venue, stats, historyHtml) {
+  document.getElementById("modal-venue-name").textContent = venue;
+  document.getElementById("modal-venue-sub").textContent = `First order ${stats.firstOrder}`;
+  document.getElementById("modal-stat-orders").textContent = stats.orderCount;
+  document.getElementById("modal-stat-spent").textContent = fmtEuro(stats.spent);
+  document.getElementById("modal-stat-rating-text").textContent = stats.avgRating !== "-" ? stats.avgRating : "-";
+  document.getElementById("modal-stat-rating-star").style.display = stats.avgRating !== "-" ? "inline" : "none";
+
+  document.getElementById("modal-items-list").innerHTML = stats.topItems.length
+    ? stats.topItems.map(([name, count]) => `
+        <span class="item-chip">
+          ${escHtml(name)}
+          ${count > 1 ? `<span class="item-chip-count">x${count}</span>` : ""}
+        </span>`).join("")
+    : `<p class="modal-empty-text">No item data available.</p>`;
+  document.getElementById("modal-orders-list").innerHTML = historyHtml;
+}
 function closeModal() {
   modalBackdrop.classList.remove("open");
   document.body.style.overflow = "";
@@ -369,17 +420,16 @@ importFile.addEventListener("change", async () => {
   try {
     const text = await file.text();
     const json = JSON.parse(text);
-    const res  = await fetch(`${API}/import`, {
+    const res  = await apiFetch("/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(json),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const result = await res.json();
     showToast(`Imported ${result.new_orders} new orders (${result.total_orders} total)`, "success");
     loadOrders();
   } catch (err) {
-    showToast("Import failed — invalid file or backend not running", "error");
+    showToast("Import failed - invalid file or backend not running", "error");
   }
 });
 
@@ -388,15 +438,14 @@ importFile.addEventListener("change", async () => {
 // ---------------------------------------------------------------------------
 exportBtn.addEventListener("click", async () => {
   try {
-    const res = await fetch(`${API}/export`);
-    if (!res.ok) throw new Error();
+    const res = await apiFetch("/export");
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url; a.download = "orders_db.json"; a.click();
     URL.revokeObjectURL(url);
   } catch {
-    showToast("Export failed — is the backend running?", "error");
+    showToast("Export failed - is the backend running?", "error");
   }
 });
 
@@ -421,15 +470,16 @@ unratedCard.addEventListener("click", () => {
 // ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
-async function saveUpdate(purchaseId, fields) {
+async function saveUpdate(purchaseId, fields, revert) {
   try {
-    await fetch(`${API}/update`, {
+    await apiFetch("/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ purchase_id: purchaseId, ...fields }),
     });
   } catch (err) {
-    console.error("Failed to save update:", err);
+    revert?.();
+    showToast(`Save failed - ${err.message}`, "error");
   }
 }
 
@@ -461,13 +511,16 @@ function escHtml(str) {
 // Event listeners
 // ---------------------------------------------------------------------------
 searchInput.addEventListener("input", () => renderTable(true));
-onlyRatedChk.addEventListener("change", () => renderTable(true));
 sortSelect.addEventListener("change", () => renderTable(true));
 
 onlyRatedChk.addEventListener("change", () => {
   onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
+  renderTable(true);
 });
 
 setInterval(updateLastSynced, 60_000);
 
 loadOrders();
+
+
+
