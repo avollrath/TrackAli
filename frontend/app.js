@@ -6,12 +6,16 @@ const API = "http://localhost:5000";
 let allOrders = [];
 let lastSynced = null;
 
+// Infinite scroll
+const PAGE_SIZE = 25;
+let visibleCount = PAGE_SIZE;
+let currentList  = [];
+
 // ---------------------------------------------------------------------------
 // DOM refs
 // ---------------------------------------------------------------------------
 const tbody            = document.getElementById("orders-tbody");
 const searchInput      = document.getElementById("search-input");
-const hideFailedChk    = document.getElementById("hide-failed");
 const onlyRatedChk     = document.getElementById("only-rated");
 const sortSelect       = document.getElementById("sort-select");
 const countLabel       = document.getElementById("order-count");
@@ -25,12 +29,23 @@ const exportBtn        = document.getElementById("export-btn");
 const unratedCard      = document.getElementById("stat-unrated-card");
 const modalBackdrop    = document.getElementById("modal-backdrop");
 const modalClose       = document.getElementById("modal-close");
+const scrollSentinel   = document.getElementById("scroll-sentinel");
+
+// ---------------------------------------------------------------------------
+// Star SVG
+// ---------------------------------------------------------------------------
+const STAR_PATH = `<path d="M16.926 20.2a1 1 0 0 1-.466-.115l-4.471-2.352-4.471 2.348a1 1 0 0 1-1.451-1.054l.854-4.98L3.3 10.521a1 1 0 0 1 .555-1.706l5-.727 2.237-4.531A1 1 0 0 1 11.989 3a1 1 0 0 1 .9.558l2.236 4.53 5 .727a1 1 0 0 1 .555 1.706l-3.618 3.527.854 4.98a1 1 0 0 1-.99 1.172z"/>`;
+
+function starSvg(filled, size = 20) {
+  const color = filled ? "#f59e0b" : "#d1d5db";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="${color}">${STAR_PATH}</svg>`;
+}
 
 // ---------------------------------------------------------------------------
 // Skeleton rows
 // ---------------------------------------------------------------------------
 function buildSkeletonRows(n = 8) {
-  const widths = [60, 80, 120, 200, 50, 100, 140];
+  const widths = [60, 80, 160, 160, 50, 110, 140];
   skeletonTbody.innerHTML = Array.from({ length: n }, () => `
     <tr class="skeleton-row">
       ${widths.map(w => `<td><span class="skeleton" style="width:${w}px;height:13px"></span></td>`).join("")}
@@ -46,7 +61,8 @@ async function loadOrders() {
     const res = await fetch(`${API}/orders`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    allOrders = data.orders || [];
+    // Always exclude failed orders
+    allOrders = (data.orders || []).filter(o => o.status === "delivered");
     lastSynced = data.last_synced || null;
     updateLastSynced();
     renderTable();
@@ -60,7 +76,7 @@ function updateLastSynced() {
   if (!lastSynced) { lastSyncedLabel.textContent = "Never synced"; return; }
   const diff = Math.floor((Date.now() - new Date(lastSynced)) / 1000);
   let label;
-  if (diff < 60)    label = `${diff}s ago`;
+  if (diff < 60)         label = `${diff}s ago`;
   else if (diff < 3600)  label = `${Math.floor(diff / 60)}m ago`;
   else if (diff < 86400) label = `${Math.floor(diff / 3600)}h ago`;
   else label = new Date(lastSynced).toLocaleDateString();
@@ -68,13 +84,12 @@ function updateLastSynced() {
 }
 
 function getFiltered() {
-  const q          = searchInput.value.trim().toLowerCase();
-  const hideFailed = hideFailedChk.checked;
-  const onlyRated  = onlyRatedChk.checked;
-  const sort       = sortSelect.value;
+  const q         = searchInput.value.trim().toLowerCase();
+  const onlyRated = onlyRatedChk.checked;
+  const sort      = sortSelect.value;
 
+  // allOrders already excludes failed orders at load time
   let list = allOrders.filter(o => {
-    if (hideFailed && o.status !== "delivered") return false;
     if (onlyRated && (!o.user_custom_data || o.user_custom_data.rating === 0)) return false;
     if (q && !`${o.venue_name} ${o.items}`.toLowerCase().includes(q)) return false;
     return true;
@@ -89,12 +104,14 @@ function getFiltered() {
   });
 }
 
-function renderTable() {
+function renderTable(resetScroll = true) {
   loadingState.style.display = "none";
 
-  const list = getFiltered();
-  updateStats(list);
-  countLabel.textContent = `${list.length} of ${allOrders.length} orders`;
+  currentList = getFiltered();
+  if (resetScroll) visibleCount = PAGE_SIZE;
+
+  updateStats(currentList);
+  countLabel.textContent = `${currentList.length} of ${allOrders.length} orders`;
 
   if (allOrders.length === 0) {
     tableContainer.classList.add("hidden");
@@ -105,39 +122,49 @@ function renderTable() {
   emptyState.style.display = "none";
   tableContainer.classList.remove("hidden");
 
+  renderRows();
+}
+
+function renderRows() {
   tbody.innerHTML = "";
-  for (const order of list) {
-    tbody.appendChild(buildRow(order));
-  }
+  const slice = currentList.slice(0, visibleCount);
+  for (const order of slice) tbody.appendChild(buildRow(order));
 }
 
 // ---------------------------------------------------------------------------
-// Stats
+// Infinite scroll via IntersectionObserver
+// ---------------------------------------------------------------------------
+const scrollObserver = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting && visibleCount < currentList.length) {
+    visibleCount += PAGE_SIZE;
+    renderRows();
+  }
+}, { rootMargin: "200px" });
+
+if (scrollSentinel) scrollObserver.observe(scrollSentinel);
+
+// ---------------------------------------------------------------------------
+// Stats — delivered only (failed already excluded from allOrders)
 // ---------------------------------------------------------------------------
 function updateStats(list) {
-  const delivered = list.filter(o => o.status === "delivered");
+  const spent = list.reduce((sum, o) => sum + parseAmount(o.total_amount), 0);
+  document.getElementById("stat-count").textContent      = list.length;
+  document.getElementById("stat-spent").textContent      = list.length ? `€${spent.toFixed(2)}` : "—";
+  document.getElementById("stat-avg-value").textContent  =
+    list.length ? `€${(spent / list.length).toFixed(2)}` : "—";
 
-  // Total spent
-  const spent = delivered.reduce((sum, o) => sum + parseAmount(o.total_amount), 0);
-  document.getElementById("stat-count").textContent   = list.length;
-  document.getElementById("stat-spent").textContent   = list.length ? `€${spent.toFixed(2)}` : "—";
-  document.getElementById("stat-avg-value").textContent =
-    delivered.length ? `€${(spent / delivered.length).toFixed(2)}` : "—";
-
-  // Avg rating (only rated orders)
   const rated = list.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
     : "—";
-  document.getElementById("stat-avg-rating").textContent = avgRating !== "—" ? `${avgRating} ★` : "—";
+  document.getElementById("stat-avg-rating").textContent =
+    avgRating !== "—" ? `${avgRating} ★` : "—";
 
-  // Top venue
   const venueCount = {};
   for (const o of list) venueCount[o.venue_name] = (venueCount[o.venue_name] || 0) + 1;
   const topVenue = Object.entries(venueCount).sort((a, b) => b[1] - a[1])[0];
   document.getElementById("stat-top-venue").textContent = topVenue ? topVenue[0] : "—";
 
-  // Unrated
   const unratedCount = list.filter(o => !o.user_custom_data?.rating).length;
   document.getElementById("stat-unrated").textContent = unratedCount;
   document.getElementById("stat-unrated-sub").textContent =
@@ -156,17 +183,12 @@ function parseAmount(str) {
 function buildRow(order) {
   const ucd = order.user_custom_data || { rating: 0, notes: "", last_edited: null };
   const tr  = document.createElement("tr");
-  tr.className = "row-fade" + (order.status !== "delivered" ? " failed-row" : "");
+  tr.className = "row-fade";
   tr.dataset.id = order.purchase_id;
 
-  const statusHtml = order.status === "delivered"
-    ? `<span class="badge delivered"><span class="badge-dot"></span>Delivered</span>`
-    : `<span class="badge failed"><span class="badge-dot"></span>Failed</span>`;
-
   tr.innerHTML = `
-    <td>${statusHtml}</td>
     <td style="color:var(--text-3);font-size:12px;white-space:nowrap">${escHtml(order.received_at)}</td>
-    <td><button class="venue-link" data-venue="${escHtml(order.venue_name)}" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
+    <td><button class="venue-link" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
     <td class="items-cell">
       ${splitItems(order.items).map(i => `<div class="item-line">${escHtml(i)}</div>`).join("")}
     </td>
@@ -176,13 +198,9 @@ function buildRow(order) {
       <textarea class="notes-area" placeholder="Add a note…" data-id="${escHtml(order.purchase_id)}">${escHtml(ucd.notes)}</textarea>
     </td>`;
 
-  // Venue modal
   tr.querySelector(".venue-link").addEventListener("click", () => openModal(order.venue_name));
-
-  // Star handlers
   bindStars(tr, order);
 
-  // Notes blur
   const textarea = tr.querySelector("textarea");
   textarea.addEventListener("blur", () => {
     const notes = textarea.value;
@@ -196,13 +214,12 @@ function buildRow(order) {
 }
 
 // ---------------------------------------------------------------------------
-// Stars
+// Stars — SVG
 // ---------------------------------------------------------------------------
 function buildStars(current, id) {
-  return [1, 2, 3, 4, 5].map(v => {
-    const filled = v <= current;
-    return `<button class="star-btn${filled ? " filled" : ""}" data-id="${escHtml(id)}" data-value="${v}" title="${v} star${v > 1 ? "s" : ""}">★</button>`;
-  }).join("");
+  return [1, 2, 3, 4, 5].map(v =>
+    `<button class="star-btn${v <= current ? " filled" : ""}" data-id="${escHtml(id)}" data-value="${v}" title="${v} star${v > 1 ? "s" : ""}">${starSvg(v <= current)}</button>`
+  ).join("");
 }
 
 function bindStars(tr, order) {
@@ -210,17 +227,18 @@ function bindStars(tr, order) {
   const ucd  = order.user_custom_data;
 
   wrap.querySelectorAll(".star-btn").forEach(btn => {
-    // Hover preview
     btn.addEventListener("mouseenter", () => {
       const hv = parseInt(btn.dataset.value, 10);
-      wrap.querySelectorAll(".star-btn").forEach(b =>
-        b.classList.toggle("filled", parseInt(b.dataset.value, 10) <= hv)
-      );
+      wrap.querySelectorAll(".star-btn").forEach(b => {
+        const v = parseInt(b.dataset.value, 10);
+        b.innerHTML = starSvg(v <= hv);
+      });
     });
     btn.addEventListener("mouseleave", () => {
-      wrap.querySelectorAll(".star-btn").forEach(b =>
-        b.classList.toggle("filled", parseInt(b.dataset.value, 10) <= ucd.rating)
-      );
+      wrap.querySelectorAll(".star-btn").forEach(b => {
+        const v = parseInt(b.dataset.value, 10);
+        b.innerHTML = starSvg(v <= ucd.rating);
+      });
     });
     btn.addEventListener("click", () => {
       const rating = parseInt(btn.dataset.value, 10);
@@ -228,7 +246,7 @@ function bindStars(tr, order) {
       saveUpdate(order.purchase_id, { rating });
       wrap.innerHTML = buildStars(rating, order.purchase_id);
       bindStars(tr, order);
-      updateStats(getFiltered());
+      updateStats(currentList);
     });
   });
 }
@@ -237,12 +255,12 @@ function bindStars(tr, order) {
 // Restaurant detail modal
 // ---------------------------------------------------------------------------
 function openModal(venueName) {
+  // Modal uses all delivered orders for that venue
   const venueOrders = allOrders
     .filter(o => o.venue_name === venueName)
     .sort((a, b) => compareDates(b.received_at, a.received_at));
 
-  const delivered = venueOrders.filter(o => o.status === "delivered");
-  const spent = delivered.reduce((s, o) => s + parseAmount(o.total_amount), 0);
+  const spent = venueOrders.reduce((s, o) => s + parseAmount(o.total_amount), 0);
   const rated = venueOrders.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
@@ -258,7 +276,6 @@ function openModal(venueName) {
   // Item frequency
   const itemFreq = {};
   for (const o of venueOrders) {
-    if (!o.items) continue;
     for (const item of splitItems(o.items)) {
       itemFreq[item] = (itemFreq[item] || 0) + 1;
     }
@@ -272,18 +289,21 @@ function openModal(venueName) {
         </span>`).join("")
     : `<p style="color:var(--text-3);font-size:13px">No item data available.</p>`;
 
-  // Order history
+  // Order history — items on separate rows
   document.getElementById("modal-orders-list").innerHTML = venueOrders.map(o => {
-    const ucd = o.user_custom_data || {};
+    const ucd   = o.user_custom_data || {};
     const stars = [1,2,3,4,5].map(v =>
-      `<span class="modal-mini-star${v <= ucd.rating ? " filled" : ""}">★</span>`
+      `<span class="modal-mini-star">${starSvg(v <= ucd.rating, 14)}</span>`
     ).join("");
+    const itemLines = splitItems(o.items)
+      .map(i => `<div class="modal-item-line">${escHtml(i)}</div>`)
+      .join("") || escHtml(o.items || "—");
     return `
       <div class="modal-order-row">
         <div class="modal-order-date">${escHtml(o.received_at)}</div>
         <div class="modal-order-items">
-          ${escHtml(o.items || "—")}
-          ${ucd.notes ? `<div style="font-size:11px;color:var(--text-3);margin-top:3px">💬 ${escHtml(ucd.notes)}</div>` : ""}
+          ${itemLines}
+          ${ucd.notes ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">💬 ${escHtml(ucd.notes)}</div>` : ""}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
           <div class="modal-order-total">${escHtml(o.total_amount)}</div>
@@ -331,9 +351,7 @@ exportBtn.addEventListener("click", async () => {
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href     = url;
-    a.download = "orders_db.json";
-    a.click();
+    a.href = url; a.download = "orders_db.json"; a.click();
     URL.revokeObjectURL(url);
   } catch {
     showToast("Export failed — is the backend running?", "error");
@@ -341,24 +359,25 @@ exportBtn.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Unrated card filter shortcut
+// Unrated card shortcut
 // ---------------------------------------------------------------------------
 unratedCard.addEventListener("click", () => {
   onlyRatedChk.checked = false;
-  hideFailedChk.checked = false;
+  document.getElementById("chip-only-rated").classList.remove("active");
   searchInput.value = "";
-  // Custom filter: show only unrated delivered orders
-  const q = "__unrated__";
-  searchInput.dataset.unratedFilter = "1";
-  renderTable();
-  delete searchInput.dataset.unratedFilter;
+
+  const list = allOrders.filter(o => !o.user_custom_data?.rating);
+  currentList  = list;
+  visibleCount = PAGE_SIZE;
+  updateStats(list);
+  countLabel.textContent = `${list.length} of ${allOrders.length} orders`;
+  emptyState.style.display = list.length === 0 ? "flex" : "none";
+  tableContainer.classList.toggle("hidden", list.length === 0);
+  renderRows();
 });
 
-// Override getFiltered for unrated shortcut
-const _origGetFiltered = getFiltered;
-
 // ---------------------------------------------------------------------------
-// API calls
+// API
 // ---------------------------------------------------------------------------
 async function saveUpdate(purchaseId, fields) {
   try {
@@ -387,7 +406,6 @@ function parseDate(str) {
 
 function splitItems(str) {
   if (!str) return [];
-  // Wolt stores items as "Item A and Item B and Item C"
   return str.split(" and ").map(s => s.trim()).filter(Boolean);
 }
 
@@ -400,36 +418,14 @@ function escHtml(str) {
 // ---------------------------------------------------------------------------
 // Event listeners
 // ---------------------------------------------------------------------------
-searchInput.addEventListener("input", renderTable);
-hideFailedChk.addEventListener("change", renderTable);
-onlyRatedChk.addEventListener("change", renderTable);
-sortSelect.addEventListener("change", renderTable);
+searchInput.addEventListener("input", () => renderTable(true));
+onlyRatedChk.addEventListener("change", () => renderTable(true));
+sortSelect.addEventListener("change", () => renderTable(true));
 
-// Sync chip active state on checkboxes
-[hideFailedChk, onlyRatedChk].forEach(chk => {
-  chk.addEventListener("change", () => {
-    chk.closest(".filter-chip").classList.toggle("active", chk.checked);
-  });
+onlyRatedChk.addEventListener("change", () => {
+  onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
 });
 
-// Unrated card — show only unrated
-unratedCard.addEventListener("click", () => {
-  onlyRatedChk.checked = false;
-  document.getElementById("chip-only-rated").classList.remove("active");
-  searchInput.value = "";
-
-  // Temporarily override filter to show unrated only
-  const list = allOrders.filter(o => !o.user_custom_data?.rating);
-  updateStats(list);
-  countLabel.textContent = `${list.length} of ${allOrders.length} orders`;
-  emptyState.style.display = list.length === 0 ? "flex" : "none";
-  tableContainer.classList.toggle("hidden", list.length === 0);
-  tbody.innerHTML = "";
-  for (const order of list) tbody.appendChild(buildRow(order));
-});
-
-// Refresh last-synced label every minute
 setInterval(updateLastSynced, 60_000);
 
-// Boot
 loadOrders();

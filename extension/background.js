@@ -138,7 +138,7 @@ async function handleSync() {
   if (data.wolt_session_id) reqHeaders["wolt-session-id"] = data.wolt_session_id;
 
   const woltRes = await fetch(
-    "https://consumer-api.wolt.com/order-tracking-api/v1/order_history/?limit=50",
+    "https://consumer-api.wolt.com/order-tracking-api/v1/order_history/?limit=1000",
     { headers: reqHeaders }
   );
 
