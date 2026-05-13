@@ -78,7 +78,7 @@
     .col-items { width: 220px; }
     .col-total { width: 90px; }
     .col-rating { width: 160px; }
-    .col-notes { min-width: 160px; }
+    .col-notes { width: 260px; }
 
     .stat-rating-inline {
       display: flex;
@@ -572,6 +572,8 @@
     /* Items cell */
     .items-cell {
       color: var(--color-text-muted);
+      max-width: 0;
+      overflow: hidden;
     }
 
     .item-line {
