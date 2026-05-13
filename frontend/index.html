@@ -451,34 +451,22 @@
 
     /* Items cell */
     .items-cell {
-      max-width: 220px;
+      max-width: 260px;
       color: var(--text-2);
+    }
+
+    .item-line {
+      font-size: 12px;
+      line-height: 1.7;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      cursor: default;
-      position: relative;
     }
 
-    .items-tooltip {
-      display: none;
-      position: absolute;
-      left: 0;
-      top: calc(100% + 4px);
-      background: var(--text);
-      color: #fff;
-      font-size: 12px;
-      line-height: 1.5;
-      padding: 8px 12px;
-      border-radius: var(--radius-sm);
-      z-index: 100;
-      max-width: 320px;
-      white-space: normal;
-      box-shadow: var(--shadow);
-      pointer-events: none;
+    .item-line + .item-line {
+      border-top: 1px solid var(--border);
+      padding-top: 1px;
     }
-
-    .items-cell:hover .items-tooltip { display: block; }
 
     /* Total */
     .total-cell {

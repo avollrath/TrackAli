@@ -168,8 +168,7 @@ function buildRow(order) {
     <td style="color:var(--text-3);font-size:12px;white-space:nowrap">${escHtml(order.received_at)}</td>
     <td><button class="venue-link" data-venue="${escHtml(order.venue_name)}" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
     <td class="items-cell">
-      <span class="items-text">${escHtml(order.items)}</span>
-      <div class="items-tooltip">${escHtml(order.items)}</div>
+      ${order.items.split(", ").filter(Boolean).map(i => `<div class="item-line">${escHtml(i.trim())}</div>`).join("")}
     </td>
     <td class="total-cell" style="text-align:right">${escHtml(order.total_amount)}</td>
     <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(ucd.rating, order.purchase_id)}</div></td>
