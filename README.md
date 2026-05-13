@@ -28,6 +28,7 @@ wolt-ratings/
 |   |-- popup.css
 |   |-- popup.html
 |   |-- popup.js
+|   |-- Voltymore.ttf
 |   `-- icons/
 |       |-- icon16.png
 |       |-- icon48.png

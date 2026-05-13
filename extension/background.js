@@ -23,29 +23,22 @@ function setBadgeReady() {
   chrome.action.setBadgeBackgroundColor({ color: "#22c55e" });
   chrome.action.setIcon({
     path: {
-      16: "icons/logo.svg",
-      48: "icons/logo.svg",
-      128: "icons/logo.svg",
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
     },
   });
 }
 
 function setBadgeExpired() {
   chrome.action.setBadgeText({ text: "" });
-  // Draw a greyed-out version of the icon using an offscreen canvas
-  const sizes = [16, 48, 128];
-  for (const size of sizes) {
-    const canvas = new OffscreenCanvas(size, size);
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    img.onload = () => {
-      ctx.filter = "grayscale(1) brightness(0.4)";
-      ctx.drawImage(img, 0, 0, size, size);
-      const imageData = ctx.getImageData(0, 0, size, size);
-      chrome.action.setIcon({ imageData: { [size]: imageData } });
-    };
-    img.src = chrome.runtime.getURL("icons/logo.svg");
-  }
+  chrome.action.setIcon({
+    path: {
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
+    },
+  });
 }
 
 function invalidateCredentials() {
@@ -53,12 +46,12 @@ function invalidateCredentials() {
   setBadgeExpired();
 }
 
-// Restore badge state on service worker startup — check token expiry
+// Restore badge state on service worker startup - check token expiry
 chrome.storage.session.get("wolt_auth", (data) => {
   if (isTokenValid(data.wolt_auth)) {
     setBadgeReady();
   } else if (data.wolt_auth) {
-    // Token present but expired — clear it
+    // Token present but expired - clear it
     invalidateCredentials();
   }
 });

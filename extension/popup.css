@@ -1,6 +1,6 @@
 @font-face {
       font-family: 'Voltymore';
-      src: url('../frontend/fonts/Voltymore.ttf') format('truetype');
+      src: url('Voltymore.ttf') format('truetype');
       font-weight: 900;
       font-style: normal;
       font-display: swap;
