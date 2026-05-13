@@ -73,9 +73,17 @@ def parse_order(raw: dict) -> dict:
 # Routes
 # ---------------------------------------------------------------------------
 
+FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "font")
+
+
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/font/<path:filename>")
+def serve_font(filename):
+    return send_from_directory(FONT_DIR, filename)
 
 
 @app.route("/sync", methods=["POST"])
