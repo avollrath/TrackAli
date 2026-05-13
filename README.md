@@ -8,15 +8,11 @@ So I built one.
 
 **Wolt Ratings** is a local-first tool that pulls your complete order history into a personal dashboard where you can rate every order 1–5 stars and leave notes for your future self. *"The garlic sauce is elite here."* *"Ask for extra spicy next time."* *"Never again."* It lives entirely on your machine — your data never touches a third-party server.
 
----
-
-## Screenshots
-
-![Dashboard](screenshots/dashboard.jpg)
-
-![Venue Modal](screenshots/venue_modal.jpg)
-
-![Extension Popup](screenshots/extension.jpg)
+<p align="center">
+  <img src="screenshots/dashboard.jpg" alt="Wolt Ratings Dashboard" width="100%" />
+  <br/>
+  <em>The full order history dashboard — searchable, sortable, and fully annotatable.</em>
+</p>
 
 ---
 
@@ -57,12 +53,24 @@ Three components, each doing one job:
 - **European number format** — amounts displayed as `14,68€`
 - **Custom Voltymore font** for headings; Roboto for body text
 
+<p align="center">
+  <img src="screenshots/venue_modal.jpg" alt="Venue detail modal" width="60%" />
+  <br/>
+  <em>The venue modal — per-restaurant stats, most-ordered items, and your full visit history at a glance.</em>
+</p>
+
 ### Extension
 - **One-click sync** — captures your Wolt session token automatically via content script
 - **Token validity indicator** — green dot when credentials are fresh, grey icon when expired
 - **Server status check** — shows backend order count and last sync time before you sync
 - **Sync summary** — reports new orders added vs. already in database
 - **Voltymore font** in the popup header
+
+<p align="center">
+  <img src="screenshots/extension.jpg" alt="Browser extension popup" width="320" />
+  <br/>
+  <em>The extension popup — token status, server health, and one-click sync.</em>
+</p>
 
 ### Backend
 - **Non-destructive merge** — re-syncing never overwrites ratings or notes
