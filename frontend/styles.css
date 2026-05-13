@@ -237,9 +237,9 @@
     }
 
     .btn-demo.active {
-      background: #fff8e6;
-      color: #b45309;
-      border-color: #f59e0b;
+      background: var(--cyan-light);
+      border-color: var(--cyan);
+      color: var(--cyan-dark);
     }
 
     /* Toolbar */
