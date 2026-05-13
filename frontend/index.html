@@ -43,34 +43,6 @@
     </div>
   </header>
 
-  <!-- ── Toolbar ─────────────────────────────────────────────── -->
-  <div class="toolbar">
-    <div class="toolbar-inner">
-      <div class="search-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input id="search-input" type="text" class="search-input" placeholder="Search venue or item…" />
-      </div>
-      <select id="sort-select" class="sort-select">
-        <option value="date_desc">Newest first</option>
-        <option value="date_asc">Oldest first</option>
-        <option value="rating_desc">Highest rated</option>
-        <option value="value_desc">Highest value</option>
-        <option value="venue_asc">Venue A–Z</option>
-      </select>
-      <select id="year-select" class="sort-select">
-        <option value="all">All years</option>
-      </select>
-      <div class="toolbar-filters">
-        <label class="filter-chip" id="chip-only-rated">
-          <input type="checkbox" id="only-rated" />
-          Rated only
-        </label>
-      </div>
-    </div>
-  </div>
-
   <!-- ── Stats bar ───────────────────────────────────────────── -->
   <div class="stats-bar" id="stats-bar">
     <div class="stat-card">
@@ -137,6 +109,30 @@
 
       <!-- Orders table -->
       <div id="table-container" class="hidden">
+        <div class="toolbar-inner">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input id="search-input" type="text" class="search-input" placeholder="Search venue or item…" />
+          </div>
+          <select id="sort-select" class="sort-select">
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="rating_desc">Highest rated</option>
+            <option value="value_desc">Highest value</option>
+            <option value="venue_asc">Venue A–Z</option>
+          </select>
+          <select id="year-select" class="sort-select">
+            <option value="all">All years</option>
+          </select>
+          <div class="toolbar-filters">
+            <label class="filter-chip" id="chip-only-rated">
+              <input type="checkbox" id="only-rated" />
+              Rated only
+            </label>
+          </div>
+        </div>
         <table>
           <thead>
             <tr>
