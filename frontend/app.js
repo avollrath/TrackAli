@@ -76,7 +76,7 @@ function updateLastSynced() {
   if (!lastSynced) { lastSyncedLabel.textContent = "Never synced"; return; }
   const diff = Math.floor((Date.now() - new Date(lastSynced)) / 1000);
   let label;
-  if (diff < 0)          label = "just now";
+  if (diff < 0 || diff > 86400 * 365) label = new Date(lastSynced).toLocaleString();
   else if (diff < 60)    label = `${diff}s ago`;
   else if (diff < 3600)  label = `${Math.floor(diff / 60)}m ago`;
   else if (diff < 86400) label = `${Math.floor(diff / 3600)}h ago`;
