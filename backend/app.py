@@ -143,7 +143,7 @@ def orders():
     return jsonify({"success": True, **db})
 
 
-@app.route("/update", methods=["POST"])
+@app.route("/orders/update", methods=["POST"])
 def update():
     body, error = get_json_body()
     if error:

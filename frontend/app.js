@@ -472,7 +472,7 @@ unratedCard.addEventListener("click", () => {
 // ---------------------------------------------------------------------------
 async function saveUpdate(purchaseId, fields, revert) {
   try {
-    await apiFetch("/update", {
+    await apiFetch("/orders/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ purchase_id: purchaseId, ...fields }),

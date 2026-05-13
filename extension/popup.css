@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
       font-family: 'Voltymore';
       src: url('../frontend/fonts/Voltymore.ttf') format('truetype');
       font-weight: 900;
@@ -17,8 +17,8 @@
       --cyan-bg: var(--color-accent-soft);
       --color-text: #1a1a2e;
       --text: var(--color-text);
-      --text-2: #6b7280;
-      --text-3: #9ca3af;
+      --color-text-muted: #6b7280;
+      --color-text-subtle: #9ca3af;
       --color-border: #e8eaed;
       --border: var(--color-border);
       --color-bg: #f7f8fa;
@@ -58,7 +58,7 @@
       outline-offset: 2px;
     }
 
-    /* ── Header ──────────────────────────────────────────── */
+    /* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .header {
       padding: 20px 20px 16px;
       border-bottom: 1px solid var(--border);
@@ -77,14 +77,14 @@
 
     .header-text p {
       font-size: 11px;
-      color: var(--text-3);
+      color: var(--color-text-subtle);
       margin-top: 2px;
     }
 
-    /* ── Body ────────────────────────────────────────────── */
+    /* â”€â”€ Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .body { padding: 16px 20px; }
 
-    /* ── Status indicators ───────────────────────────────── */
+    /* â”€â”€ Status indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .status-group {
       display: flex;
       flex-direction: column;
@@ -130,7 +130,7 @@
 
     .status-sub {
       font-size: 11px;
-      color: var(--text-3);
+      color: var(--color-text-subtle);
       margin-top: 1px;
     }
 
@@ -145,15 +145,15 @@
     .dot-yellow { background: var(--yellow); }
     .dot-red    { background: var(--red); }
 
-    /* ── Last synced ─────────────────────────────────────── */
+    /* â”€â”€ Last synced â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .last-synced {
       font-size: 11px;
-      color: var(--text-3);
+      color: var(--color-text-subtle);
       text-align: center;
       margin-bottom: 14px;
     }
 
-    /* ── Sync button ─────────────────────────────────────── */
+    /* â”€â”€ Sync button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .btn-sync {
       width: 100%;
       padding: 13px;
@@ -181,7 +181,7 @@
       box-shadow: none;
     }
 
-    /* ── Result ──────────────────────────────────────────── */
+    /* â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .result {
       display: none;
       margin-top: 12px;
@@ -220,7 +220,7 @@
 
     .result-stat span:last-child { font-weight: 500; }
 
-    /* ── Footer ──────────────────────────────────────────── */
+    /* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .footer {
       padding: 10px 20px;
       border-top: 1px solid var(--border);
@@ -244,8 +244,9 @@
 
     .footer-hint {
       font-size: 11px;
-      color: var(--text-3);
+      color: var(--color-text-subtle);
     }
+
 
 
 

@@ -1,7 +1,9 @@
-"""Run once to generate extension icons: python generate_icons.py
+﻿"""Generate extension icons at 16, 48, and 128px.
 
-Draws the 🍜 emoji onto a dark rounded-square background at 16, 48, 128px.
-Requires no third-party libraries — uses only tkinter (stdlib on Windows/macOS).
+Run from this directory with: python generate_icons.py
+
+Draws the ðŸœ emoji onto a dark rounded-square background at 16, 48, 128px.
+Requires no third-party libraries â€” uses only tkinter (stdlib on Windows/macOS).
 Falls back to a plain coloured square if tkinter is unavailable.
 """
 import os
@@ -46,12 +48,12 @@ def make_icon_tkinter(size):
     font_size = max(8, int(size * 0.72))
     canvas.create_text(
         size / 2, size / 2,
-        text="🍜",
+        text="ðŸœ",
         font=("Segoe UI Emoji", font_size),
         anchor="center",
     )
 
-    # Render to a PhotoImage via postscript → not ideal, so use a different approach:
+    # Render to a PhotoImage via postscript â†’ not ideal, so use a different approach:
     # Draw onto an offscreen PhotoImage using PIL if available, else fallback.
     root.destroy()
     raise NotImplementedError("tkinter pixel readback requires PIL")
@@ -69,7 +71,7 @@ def make_icon_pillow(size):
     bg_color = (15, 15, 15, 255)
     draw.rounded_rectangle([0, 0, size - 1, size - 1], radius=radius, fill=bg_color)
 
-    # Emoji — try system emoji font
+    # Emoji â€” try system emoji font
     font_size = max(10, int(size * 0.72))
     font = None
     font_paths = [
@@ -88,18 +90,18 @@ def make_icon_pillow(size):
     if font is None:
         font = ImageFont.load_default()
 
-    bbox = draw.textbbox((0, 0), "🍜", font=font)
+    bbox = draw.textbbox((0, 0), "ðŸœ", font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x = (size - tw) // 2 - bbox[0]
     y = (size - th) // 2 - bbox[1]
-    draw.text((x, y), "🍜", font=font, embedded_color=True)
+    draw.text((x, y), "ðŸœ", font=font, embedded_color=True)
 
     pixels = list(img.getdata())
     return png_from_rgba(pixels, size)
 
 
 def make_icon_fallback(size):
-    """Plain #009de0 square — used when neither PIL nor tkinter works."""
+    """Plain #009de0 square â€” used when neither PIL nor tkinter works."""
     r, g, b = 0x00, 0x9D, 0xE0
     radius = size // 5
 
@@ -136,3 +138,5 @@ for size in [16, 48, 128]:
     with open(path, "wb") as f:
         f.write(data)
     print(f"icons/icon{size}.png  [{method}]")
+
+
