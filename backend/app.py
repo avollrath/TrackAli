@@ -10,7 +10,7 @@ CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
-FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "font")
+FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "fonts")
 DB_LOCK = threading.Lock()
 
 
