@@ -389,6 +389,12 @@
       margin-bottom: 6px;
     }
 
+    .stat-emoji {
+      font-size: 20px;
+      vertical-align: middle;
+      margin-right: 2px;
+    }
+
     .stat-value {
       font-family: 'Voltymore', sans-serif;
       font-weight: 900;
