@@ -49,12 +49,12 @@ function setBadgeExpired() {
 }
 
 function invalidateCredentials() {
-  chrome.storage.local.remove(["wolt_auth", "wolt_session_id", "captured_at"]);
+  chrome.storage.session.remove(["wolt_auth", "wolt_session_id", "captured_at"]);
   setBadgeExpired();
 }
 
 // Restore badge state on service worker startup — check token expiry
-chrome.storage.local.get("wolt_auth", (data) => {
+chrome.storage.session.get("wolt_auth", (data) => {
   if (isTokenValid(data.wolt_auth)) {
     setBadgeReady();
   } else if (data.wolt_auth) {
@@ -74,7 +74,7 @@ chrome.webRequest.onSendHeaders.addListener(
       if (name === "wolt-session-id") sessionId = header.value;
     }
     if (auth && isTokenValid(auth)) {
-      chrome.storage.local.set({
+      chrome.storage.session.set({
         wolt_auth: auth,
         ...(sessionId && { wolt_session_id: sessionId }),
         captured_at: Date.now(),
@@ -96,7 +96,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       captured_at: Date.now(),
     };
     if (message.sessionId) update.wolt_session_id = message.sessionId;
-    chrome.storage.local.set(update);
+    chrome.storage.session.set(update);
     setBadgeReady();
     return;
   }
@@ -109,7 +109,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.action === "getStatus") {
-    chrome.storage.local.get(
+    chrome.storage.session.get(
       ["wolt_auth", "wolt_session_id", "captured_at"],
       (data) => {
         const valid = isTokenValid(data.wolt_auth);
@@ -124,7 +124,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function handleSync() {
-  const data = await chrome.storage.local.get(["wolt_auth", "wolt_session_id"]);
+  const data = await chrome.storage.session.get(["wolt_auth", "wolt_session_id"]);
 
   if (!isTokenValid(data.wolt_auth)) {
     invalidateCredentials();
@@ -137,27 +137,36 @@ async function handleSync() {
   };
   if (data.wolt_session_id) reqHeaders["wolt-session-id"] = data.wolt_session_id;
 
-  const woltRes = await fetch(
-    "https://consumer-api.wolt.com/order-tracking-api/v1/order_history/?limit=1000",
-    { headers: reqHeaders }
-  );
+  const orders = [];
+  let cursor = null;
 
-  if (woltRes.status === 401) {
-    invalidateCredentials();
-    throw new Error("Session expired (401). Reload wolt.com to capture a fresh token.");
-  }
+  do {
+    const url = new URL("https://consumer-api.wolt.com/order-tracking-api/v1/order_history/");
+    url.searchParams.set("limit", "100");
+    if (cursor) url.searchParams.set("cursor", cursor);
 
-  if (!woltRes.ok) {
-    const text = await woltRes.text();
-    throw new Error(`Wolt API error ${woltRes.status}: ${text}`);
-  }
+    const woltRes = await fetch(url.toString(), { headers: reqHeaders });
 
-  const woltData = await woltRes.json();
+    if (woltRes.status === 401) {
+      invalidateCredentials();
+      throw new Error("Session expired (401). Reload wolt.com to capture a fresh token.");
+    }
+
+    if (!woltRes.ok) {
+      const text = await woltRes.text();
+      throw new Error(`Wolt API error ${woltRes.status}: ${text}`);
+    }
+
+    const page = await woltRes.json();
+    orders.push(...(Array.isArray(page.orders) ? page.orders : []));
+    cursor = page.next_cursor || page.nextCursor || page.cursor_next || page.next || null;
+  } while (cursor);
 
   const backendRes = await fetch("http://localhost:5000/sync", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(woltData),
+    body: JSON.stringify({ orders }),
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!backendRes.ok) {

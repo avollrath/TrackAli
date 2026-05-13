@@ -5,9 +5,7 @@
   "description": "Capture Wolt session tokens and sync order history to your local Wolt Ratings app.",
   "permissions": [
     "webRequest",
-    "storage",
-    "activeTab",
-    "action"
+    "storage"
   ],
   "host_permissions": [
     "https://consumer-api.wolt.com/*",

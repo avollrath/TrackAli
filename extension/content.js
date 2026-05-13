@@ -2,6 +2,10 @@
 // and forwards it to the background service worker via chrome.runtime.sendMessage.
 
 (function () {
+  function isWoltBearerToken(value) {
+    return typeof value === "string" && value.startsWith("Bearer ey") && value.length >= 100;
+  }
+
   function findToken() {
     // Wolt stores its auth state in localStorage under various keys.
     // Try the known ones first, then do a broad scan.
@@ -16,21 +20,21 @@
 
     for (const key of candidates) {
       const val = localStorage.getItem(key);
-      if (val && val.startsWith("ey")) return val; // JWT
+      if (isWoltBearerToken(val)) return val;
     }
 
     // Broad scan: any localStorage value that looks like a Bearer JWT
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       const val = localStorage.getItem(key);
-      if (val && val.startsWith("eyJ")) return val;
+      if (isWoltBearerToken(val)) return val;
     }
 
     // Try sessionStorage too
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
       const val = sessionStorage.getItem(key);
-      if (val && val.startsWith("eyJ")) return val;
+      if (isWoltBearerToken(val)) return val;
     }
 
     return null;
@@ -55,7 +59,7 @@
 
     chrome.runtime.sendMessage({
       action: "storeCredentials",
-      authorization: "Bearer " + token,
+      authorization: token,
       sessionId: sessionId,
     });
 
