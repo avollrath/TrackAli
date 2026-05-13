@@ -404,9 +404,9 @@
       position: fixed;
       bottom: 0;
       left: 0;
-      width: 100vw;
-      background: var(--color-brand-footer);
-      border-top: 3px solid var(--cyan);
+      right: 0;
+      background: var(--cyan);
+      border-top: 3px solid var(--color-brand-footer);
       padding: 10px 24px;
       text-align: center;
       z-index: 150;
@@ -421,7 +421,7 @@
     }
 
     .site-footer a {
-      color: var(--cyan);
+      color: var(--color-brand-footer);
       text-decoration: none;
     }
 
