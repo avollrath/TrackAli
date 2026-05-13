@@ -7,7 +7,7 @@ from flask_cors import CORS
 app = Flask(__name__, static_folder="../frontend", static_url_path="")
 CORS(app)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
+DB_PATH = os.path.join(os.path.dirname(__file__), "example_orders.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
 
@@ -151,6 +151,48 @@ def update():
             return jsonify({"success": True, "purchase_id": purchase_id})
 
     return jsonify({"error": "Order not found"}), 404
+
+
+@app.route("/import", methods=["POST"])
+def import_db():
+    payload = request.get_json(force=True)
+    if not payload or "orders" not in payload:
+        return jsonify({"error": "Expected JSON with 'orders' array"}), 400
+
+    incoming = payload.get("orders", [])
+    if not isinstance(incoming, list):
+        return jsonify({"error": "Expected 'orders' array"}), 400
+
+    db = load_db()
+    existing = {o["purchase_id"]: o for o in db["orders"]}
+
+    added = 0
+    for order in incoming:
+        pid = order.get("purchase_id")
+        if not pid:
+            continue
+        if pid not in existing:
+            # Preserve user_custom_data if present, otherwise default
+            if "user_custom_data" not in order:
+                order["user_custom_data"] = {"rating": 0, "notes": "", "last_edited": None}
+            existing[pid] = order
+            added += 1
+        else:
+            # Keep existing ratings/notes; update order fields only
+            ucd = existing[pid].get("user_custom_data") or {}
+            existing[pid] = order
+            if ucd.get("rating") or ucd.get("notes"):
+                existing[pid]["user_custom_data"] = ucd
+
+    db["orders"] = list(existing.values())
+    db["last_synced"] = datetime.now(timezone.utc).isoformat()
+    save_db(db)
+
+    return jsonify({
+        "new_orders": added,
+        "total_orders": len(db["orders"]),
+        "last_synced": db["last_synced"],
+    })
 
 
 @app.route("/export", methods=["GET"])

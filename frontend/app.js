@@ -26,6 +26,8 @@ const errorState       = document.getElementById("error-state");
 const loadingState     = document.getElementById("loading-state");
 const skeletonTbody    = document.getElementById("skeleton-tbody");
 const exportBtn        = document.getElementById("export-btn");
+const importBtn        = document.getElementById("import-btn");
+const importFile       = document.getElementById("import-file");
 const unratedCard      = document.getElementById("stat-unrated-card");
 const modalBackdrop    = document.getElementById("modal-backdrop");
 const modalClose       = document.getElementById("modal-close");
@@ -354,6 +356,32 @@ function showToast(message, type = "info", duration = 4000) {
     toast.addEventListener("animationend", () => toast.remove());
   }, duration);
 }
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+importBtn.addEventListener("click", () => importFile.click());
+
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  if (!file) return;
+  importFile.value = "";
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    const res  = await fetch(`${API}/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(json),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+    showToast(`Imported ${result.new_orders} new orders (${result.total_orders} total)`, "success");
+    loadOrders();
+  } catch (err) {
+    showToast("Import failed — invalid file or backend not running", "error");
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Export
