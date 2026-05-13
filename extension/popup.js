@@ -37,8 +37,8 @@ chrome.runtime.sendMessage({ action: "getStatus" }, (response) => {
   } else {
     setStatus(
       "yellow",
-      "No credentials yet",
-      "Visit wolt.com and browse your orders page — the extension will capture your session automatically."
+      "Session expired or not captured",
+      "Reload wolt.com — the extension will pick up a fresh token automatically."
     );
     syncBtn.disabled = true;
   }
