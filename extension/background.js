@@ -113,6 +113,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       ["wolt_auth", "wolt_session_id", "captured_at"],
       (data) => {
         const valid = isTokenValid(data.wolt_auth);
+        if (!valid) invalidateCredentials();
         sendResponse({
           hasCredentials: valid,
           capturedAt: valid ? (data.captured_at || null) : null,

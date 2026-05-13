@@ -73,28 +73,32 @@ async function checkServer() {
 // ---------------------------------------------------------------------------
 let authOk = false;
 
-chrome.runtime.sendMessage({ action: "getStatus" }, (response) => {
-  if (chrome.runtime.lastError || !response) {
-    setDot(authDot, authIcon, "error");
-    authLabel.textContent = "Extension error";
-    authSub.textContent   = chrome.runtime.lastError?.message || "";
-    return;
-  }
+function checkAuth() {
+  chrome.runtime.sendMessage({ action: "getStatus" }, (response) => {
+    if (chrome.runtime.lastError || !response) {
+      setDot(authDot, authIcon, "error");
+      authLabel.textContent = "Extension error";
+      authSub.textContent   = chrome.runtime.lastError?.message || "";
+      authOk = false;
+      updateSyncBtn();
+      return;
+    }
 
-  if (response.hasCredentials) {
-    const ago = formatAge(response.capturedAt);
-    setDot(authDot, authIcon, "ok");
-    authLabel.textContent = "Session token captured";
-    authSub.textContent   = ago ? `Captured ${ago}` : "Ready";
-    authOk = true;
-  } else {
-    setDot(authDot, authIcon, "warn");
-    authLabel.textContent = "No session token";
-    authSub.textContent   = "Open wolt.com to capture";
-    authOk = false;
-  }
-  updateSyncBtn();
-});
+    if (response.hasCredentials) {
+      const ago = formatAge(response.capturedAt);
+      setDot(authDot, authIcon, "ok");
+      authLabel.textContent = "Session token captured";
+      authSub.textContent   = ago ? `Captured ${ago}` : "Ready";
+      authOk = true;
+    } else {
+      setDot(authDot, authIcon, "warn");
+      authLabel.textContent = "No valid session token";
+      authSub.textContent   = "Open wolt.com to capture";
+      authOk = false;
+    }
+    updateSyncBtn();
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Sync button state
@@ -108,7 +112,7 @@ function updateSyncBtn() {
 // ---------------------------------------------------------------------------
 syncBtn.addEventListener("click", () => {
   syncBtn.disabled = true;
-  syncBtn.textContent = "Syncing…";
+  syncBtn.textContent = "Syncing...";
   resultBox.style.display = "none";
 
   chrome.runtime.sendMessage({ action: "sync" }, (response) => {
@@ -153,7 +157,7 @@ syncBtn.addEventListener("click", () => {
 function showResult(type, title, message, stats) {
   resultBox.className = `result ${type}`;
 
-  const icon = type === "success" ? "✓" : "✗";
+  const icon = type === "success" ? "OK" : "Error";
   let html = `<div class="result-title">${icon} ${escHtml(title)}</div>`;
 
   if (stats && type === "success") {
@@ -174,5 +178,8 @@ function escHtml(str) {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Boot — check server in parallel with auth check above
+// Boot - check server in parallel with auth status.
+checkAuth();
 checkServer();
+setInterval(checkAuth, 10_000);
+
