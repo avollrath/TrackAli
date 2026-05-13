@@ -19,13 +19,12 @@ function isTokenValid(auth) {
 }
 
 function setBadgeReady() {
-  chrome.action.setBadgeText({ text: " " });
-  chrome.action.setBadgeBackgroundColor({ color: "#22c55e" });
+  chrome.action.setBadgeText({ text: "" });
   chrome.action.setIcon({
     path: {
-      16: "icons/icon16.png",
-      48: "icons/icon48.png",
-      128: "icons/icon128.png",
+      16: "icons/icon16-ready.png",
+      48: "icons/icon48-ready.png",
+      128: "icons/icon128-ready.png",
     },
   });
 }
