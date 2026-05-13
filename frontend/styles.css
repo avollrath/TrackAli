@@ -406,14 +406,14 @@
       left: 0;
       right: 0;
       background: var(--cyan);
-      border-top: 3px solid var(--color-brand-footer);
       padding: 10px 24px;
       text-align: center;
       z-index: 150;
+      color: var(--color-white);
+      
     }
 
     .site-footer p {
-      color: var(--color-white);
       font-family: 'Roboto', sans-serif;
       font-weight: 400;
       font-size: 12px;
@@ -421,8 +421,8 @@
     }
 
     .site-footer a {
-      color: var(--color-brand-footer);
       text-decoration: none;
+      color: var(--color-white);
     }
 
     .site-footer a:hover { text-decoration: underline; }
@@ -434,6 +434,24 @@
       box-shadow: var(--shadow-sm);
       border: 1px solid var(--border);
       overflow: hidden;
+      position: relative;
+    }
+
+    .table-card::after {
+      content: '';
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 42px; /* sits just above the footer */
+      height: 80px;
+      background: linear-gradient(to bottom, transparent, rgba(247,248,250,.95));
+      pointer-events: none;
+      z-index: 40;
+      transition: opacity 0.3s;
+    }
+
+    .table-card.scroll-end::after {
+      opacity: 0;
     }
 
     table {

@@ -178,6 +178,12 @@ const scrollObserver = new IntersectionObserver((entries) => {
 
 if (scrollSentinel) scrollObserver.observe(scrollSentinel);
 
+const tableCard = document.getElementById("table-card");
+const gradientObserver = new IntersectionObserver((entries) => {
+  if (tableCard) tableCard.classList.toggle("scroll-end", entries[0].isIntersecting);
+}, { rootMargin: "0px 0px -42px 0px" });
+if (scrollSentinel) gradientObserver.observe(scrollSentinel);
+
 // ---------------------------------------------------------------------------
 // Stats - delivered only (failed already excluded from allOrders)
 // ---------------------------------------------------------------------------
