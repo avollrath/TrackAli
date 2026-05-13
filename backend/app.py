@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder="../frontend", static_url_path="")
@@ -143,6 +143,18 @@ def update():
             return jsonify({"success": True, "purchase_id": purchase_id})
 
     return jsonify({"error": "Order not found"}), 404
+
+
+@app.route("/export", methods=["GET"])
+def export():
+    if not os.path.exists(DB_PATH):
+        return jsonify({"error": "No database yet"}), 404
+    return send_file(
+        DB_PATH,
+        mimetype="application/json",
+        as_attachment=True,
+        download_name="orders_db.json",
+    )
 
 
 @app.route("/health", methods=["GET"])
