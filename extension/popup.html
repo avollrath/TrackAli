@@ -3,184 +3,298 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wolt Ratings Sync</title>
+  <title>Wolt Ratings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:      #00C2E8;
+      --cyan-dark: #00a8cc;
+      --cyan-bg:   #e6f9fd;
+      --text:      #1a1a2e;
+      --text-2:    #6b7280;
+      --text-3:    #9ca3af;
+      --border:    #e8eaed;
+      --bg:        #f7f8fa;
+      --surface:   #ffffff;
+      --green:     #12b76a;
+      --red:       #f04438;
+      --yellow:    #f59e0b;
+      --radius:    10px;
+      --shadow:    0 4px 20px rgba(0,0,0,.1), 0 1px 4px rgba(0,0,0,.06);
     }
 
     body {
-      width: 300px;
-      background: #0f0f0f;
-      color: #e8e8e8;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
+      width: 320px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* ── Header ──────────────────────────────────────────── */
     .header {
-      background: #1a1a1a;
-      border-bottom: 1px solid #2a2a2a;
-      padding: 16px;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .logo {
-      width: 32px;
-      height: 32px;
-      background: #009de0;
-      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      background: var(--cyan);
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 22px;
+      flex-shrink: 0;
+      box-shadow: 0 3px 10px rgba(0,194,232,.3);
     }
 
-    .header h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
+    .header-text h1 {
+      font-family: 'Roboto', sans-serif;
+      /* Omnes not available in extension context — use Roboto bold as fallback */
+      font-weight: 700;
+      font-size: 17px;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -0.3px;
     }
 
-    .header p {
+    .header-text p {
       font-size: 11px;
-      color: #888;
-      margin-top: 1px;
+      color: var(--text-3);
+      margin-top: 2px;
     }
 
-    .body {
-      padding: 16px;
-    }
+    /* ── Body ────────────────────────────────────────────── */
+    .body { padding: 16px 20px; }
 
-    .status-card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 14px;
+    /* ── Status indicators ───────────────────────────────── */
+    .status-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
     }
 
     .status-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: #aaa;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
     }
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #555;
+    .status-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
       flex-shrink: 0;
     }
 
-    .dot.green { background: #22c55e; }
-    .dot.yellow { background: #eab308; }
-    .dot.red { background: #ef4444; }
+    .status-icon.ok    { background: #ecfdf5; }
+    .status-icon.warn  { background: #fffbeb; }
+    .status-icon.error { background: #fef3f2; }
 
-    #status-text {
-      flex: 1;
-    }
+    .status-text-block { flex: 1; min-width: 0; }
 
-    .hint {
-      font-size: 11px;
-      color: #555;
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 11px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, opacity 0.15s;
-    }
-
-    .btn-primary {
-      background: #009de0;
-      color: #fff;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: #007bb5;
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .result {
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 8px;
+    .status-label {
       font-size: 12px;
-      line-height: 1.5;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-sub {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 1px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-green  { background: var(--green); box-shadow: 0 0 0 2px rgba(18,183,106,.2); }
+    .dot-yellow { background: var(--yellow); }
+    .dot-red    { background: var(--red); }
+
+    /* ── Last synced ─────────────────────────────────────── */
+    .last-synced {
+      font-size: 11px;
+      color: var(--text-3);
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    /* ── Sync button ─────────────────────────────────────── */
+    .btn-sync {
+      width: 100%;
+      padding: 13px;
+      background: var(--cyan);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Roboto', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: 0 3px 12px rgba(0,194,232,.35);
+      letter-spacing: 0.1px;
+    }
+
+    .btn-sync:hover:not(:disabled) {
+      background: var(--cyan-dark);
+      box-shadow: 0 4px 16px rgba(0,194,232,.45);
+    }
+
+    .btn-sync:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ── Result ──────────────────────────────────────────── */
+    .result {
       display: none;
+      margin-top: 12px;
+      padding: 11px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.6;
     }
 
     .result.success {
-      background: #052e16;
-      border: 1px solid #166534;
-      color: #86efac;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
     }
 
     .result.error {
-      background: #2d0a0a;
-      border: 1px solid #7f1d1d;
-      color: #fca5a5;
+      background: #fef3f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
     }
 
+    .result-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .result-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      color: #047857;
+    }
+
+    .result-stat span:last-child { font-weight: 500; }
+
+    /* ── Footer ──────────────────────────────────────────── */
     .footer {
-      padding: 10px 16px;
-      border-top: 1px solid #1a1a1a;
-      font-size: 11px;
-      color: #444;
-      text-align: center;
+      padding: 12px 20px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .footer a {
-      color: #009de0;
+    .footer-link {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--cyan);
       text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.12s;
+    }
+
+    .footer-link:hover { color: var(--cyan-dark); }
+
+    .footer-hint {
+      font-size: 11px;
+      color: var(--text-3);
     }
   </style>
 </head>
 <body>
+
+  <!-- Header -->
   <div class="header">
     <div class="logo">🍜</div>
-    <div>
+    <div class="header-text">
       <h1>Wolt Ratings</h1>
       <p>Order history sync</p>
     </div>
   </div>
 
+  <!-- Body -->
   <div class="body">
-    <div class="status-card">
+
+    <!-- Status indicators -->
+    <div class="status-group">
+      <!-- Auth token -->
       <div class="status-row">
-        <div class="dot" id="status-dot"></div>
-        <span id="status-text">Checking credentials…</span>
+        <div class="status-icon" id="auth-icon">🔑</div>
+        <div class="status-text-block">
+          <div class="status-label" id="auth-label">Checking…</div>
+          <div class="status-sub" id="auth-sub"></div>
+        </div>
+        <div class="status-dot" id="auth-dot"></div>
       </div>
-      <p class="hint" id="hint-text"></p>
+      <!-- Server -->
+      <div class="status-row">
+        <div class="status-icon" id="server-icon">🖥️</div>
+        <div class="status-text-block">
+          <div class="status-label" id="server-label">Checking server…</div>
+          <div class="status-sub" id="server-sub"></div>
+        </div>
+        <div class="status-dot" id="server-dot"></div>
+      </div>
     </div>
 
-    <button class="btn btn-primary" id="sync-btn" disabled>
-      Sync Now
-    </button>
+    <!-- Last synced -->
+    <p class="last-synced" id="last-synced-text"></p>
 
+    <!-- Sync button -->
+    <button class="btn-sync" id="sync-btn" disabled>Sync Now</button>
+
+    <!-- Result -->
     <div class="result" id="result-box"></div>
+
   </div>
 
+  <!-- Footer -->
   <div class="footer">
-    <a href="http://localhost:5000" target="_blank">Open Dashboard →</a>
+    <a class="footer-link" href="http://localhost:5000" target="_blank">
+      Open Dashboard
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>
+    <span class="footer-hint">Visit wolt.com to capture token</span>
   </div>
 
   <script src="popup.js"></script>
