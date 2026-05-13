@@ -489,10 +489,9 @@
     td {
       padding: 14px 16px;
       vertical-align: middle;
+      align-content: center;
       font-size: 14px;
     }
-
-    .notes-area { vertical-align: middle; }
 
     .row-fade { animation: rowIn 0.18s ease both; }
     @keyframes rowIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
