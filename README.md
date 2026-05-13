@@ -1,101 +1,102 @@
 # Wolt Ratings
 
-## What It Is
-
-Wolt Ratings is a local-first Flask app plus Chrome extension that syncs your Wolt order history to `backend/orders_db.json`, then lets you search, sort, rate, annotate, import, and export orders from a browser dashboard served at `http://localhost:5000`.
+Your Wolt order history is basically a spreadsheet locked behind a bad UI. Wolt Ratings pulls it out, stores it locally, and gives you a proper dashboard to search, sort, rate, and annotate every order you've ever placed — no accounts, no cloud, no tracking.
 
 <p align="center">
-  <img src="screenshots/dashboard.jpg" alt="Wolt Ratings dashboard showing order stats, filters, ratings, notes, and order history" width="90%" />
-  <br />
-  <em>Dashboard view: filter, sort, rate, and annotate synced Wolt orders from one local interface.</em>
+  <img src="screenshots/wolt-ratings.jpg" alt="Wolt Ratings dashboard showing order stats, filters, ratings, notes, and order history" width="90%" />
 </p>
 
-## Project Structure
+It's two things working together: a **Chrome extension** that silently captures your Wolt session token and syncs your full order history to a local JSON file, and a **Flask-served dashboard** at `http://localhost:5000` where all the useful stuff happens.
 
-```text
-wolt-ratings/
-|-- .gitignore
-|-- README.md
-|-- backend/
-|   |-- app.py
-|   |-- example_orders.json
-|   `-- requirements.txt
-|-- extension/
-|   |-- background.js
-|   |-- content.js
-|   |-- generate_icons.py
-|   |-- manifest.json
-|   |-- popup.css
-|   |-- popup.html
-|   |-- popup.js
-|   |-- Voltymore.ttf
-|   `-- icons/
-|       |-- icon16.png
-|       |-- icon48.png
-|       |-- icon128.png
-|       `-- logo.svg
-|-- frontend/
-|   |-- app.js
-|   |-- favicon.ico
-|   |-- favicon.png
-|   |-- fonts.css
-|   |-- index.html
-|   |-- styles.css
-|   |-- assets/
-|   |   `-- logo.svg
-|   `-- fonts/
-|       `-- Voltymore.ttf
-`-- screenshots/
-    |-- dashboard.jpg
-    |-- extension.jpg
-    `-- venue_modal.jpg
-```
+---
 
-`backend/orders_db.json` is created locally by sync/import and is gitignored.
+## What You Can Do
 
-## Installation
+- **Search and filter** orders by venue name or item
+- **Sort** by date, rating, or order value
+- **Rate** any order with 1–5 stars
+- **Add notes** per order — reminders, recurring favourites, complaints
+- **Click a venue** to see a modal with total spend, average rating, most ordered items, and your full visit history
+- **Import / export** your `orders_db.json` to back it up or move it between machines
+- **Demo mode** — toggle in the header to preview the app with example data without touching your real orders
+
+---
+
+## Setup
 
 ```bash
 pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-The backend listens on `http://localhost:5000` and serves the dashboard from `frontend/`.
+The backend starts at `http://localhost:5000` and serves the dashboard from `frontend/`.
 
-## Loading The Extension
+---
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select the `extension/` folder.
+## Loading the Extension
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked**
+4. Select the `extension/` folder
 
 <p align="center">
   <img src="screenshots/extension.jpg" alt="Wolt Ratings extension popup showing token capture, backend status, and sync button" width="320" />
   <br />
-  <em>Extension popup: confirms session capture and backend health before starting a sync.</em>
+  <em>The extension popup confirms your session token is captured and the backend is reachable before syncing.</em>
 </p>
 
-## First Sync Workflow
+---
 
-1. Start the backend with `python backend/app.py`.
-2. Visit `https://wolt.com` and wait for the extension to capture a session token through Wolt API request headers or the page session state.
-3. Open the extension popup and confirm the token indicator is green.
-4. Click Sync Now.
-5. Open `http://localhost:5000` to use the dashboard.
+## First Sync
+
+1. Start the backend: `python backend/app.py`
+2. Open [wolt.com](https://wolt.com) and let the page load — the extension captures your session token from outgoing API request headers
+3. Click the extension icon and confirm the token indicator is green
+4. Hit **Sync Now**
+5. Open `http://localhost:5000`
 
 <p align="center">
   <img src="screenshots/venue_modal.jpg" alt="Venue detail modal with restaurant stats, most ordered items, and order history" width="55%" />
   <br />
-  <em>Venue detail modal: click a restaurant to review spend, average rating, frequent items, and past notes.</em>
+  <em>Venue modal: total spend, average rating, your most ordered items, and every past visit in one place.</em>
 </p>
 
-## Troubleshooting Token Capture
+---
 
-If the token indicator stays yellow, reload `wolt.com`, open your Wolt order history, and wait for the page to finish loading. If it still stays yellow, sign out and back in to Wolt, then reload the page so the extension can observe a fresh API request header. Tokens are stored in `chrome.storage.session`, so reopening the browser requires a fresh capture.
+## Token Troubleshooting
+
+If the indicator stays yellow, open your Wolt order history page and wait for it to finish loading — the extension needs to observe an outgoing API request. If it still won't turn green, sign out and back in to Wolt so a fresh request fires. Tokens live in `chrome.storage.session`, so a browser restart requires a new capture.
+
+---
+
+## Project Structure
+
+```text
+wolt-ratings/
+├── backend/
+│   ├── app.py
+│   ├── example_orders.json
+│   └── requirements.txt
+├── extension/
+│   ├── background.js
+│   ├── content.js
+│   ├── manifest.json
+│   ├── popup.html / popup.js / popup.css
+│   └── icons/
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   ├── styles.css
+│   └── fonts/
+└── screenshots/
+```
+
+`backend/orders_db.json` is created on first sync and is gitignored.
+
+---
 
 ## DB Schema
-
-`backend/orders_db.json`:
 
 ```json
 {
@@ -118,110 +119,55 @@ If the token indicator stays yellow, reload `wolt.com`, open your Wolt order his
 }
 ```
 
-Fields:
+| Field | Description |
+|---|---|
+| `purchase_id` | Stable Wolt order ID |
+| `venue_name` | Restaurant name from Wolt |
+| `received_at` | Normalized to `DD/MM/YYYY, HH:MM` |
+| `total_amount` | Wolt display string |
+| `status` | Dashboard only shows `delivered` orders |
+| `user_custom_data.rating` | Local star rating, 0–5 |
+| `user_custom_data.notes` | Local free-text note |
+| `user_custom_data.last_edited` | ISO 8601 UTC timestamp of last edit |
 
-- `last_synced`: ISO 8601 UTC timestamp written by the backend.
-- `purchase_id`: stable Wolt order id.
-- `venue_name`: restaurant name from Wolt.
-- `received_at`: display timestamp normalized to `DD/MM/YYYY, HH:MM`.
-- `items`: order item summary.
-- `total_amount`: Wolt total amount display string.
-- `status`: Wolt order status; dashboard shows delivered orders.
-- `user_custom_data.rating`: local rating from 0 to 5.
-- `user_custom_data.notes`: local free-text note.
-- `user_custom_data.last_edited`: ISO 8601 UTC timestamp from the last local edit.
+---
 
 ## API Reference
 
-All JSON errors use:
+All error responses follow:
 
 ```json
 { "success": false, "error": "message" }
 ```
 
-### `GET /orders`
+### `GET /orders?demo=1`
 
-Returns the full local database.
-
-Success:
-
-```json
-{ "success": true, "last_synced": null, "orders": [] }
-```
+Returns the full database. Pass `?demo=1` to read `example_orders.json` instead.
 
 ### `POST /sync`
 
-Request:
+Accepts raw Wolt orders from the extension and stores new ones.
 
 ```json
 { "orders": [{ "purchase_id": "id", "venue_name": "Venue" }] }
 ```
 
-Success:
-
-```json
-{
-  "success": true,
-  "new_orders": 1,
-  "existing_orders": 10,
-  "total_orders": 11,
-  "last_synced": "2026-05-13T10:00:00+00:00"
-}
-```
-
-### `POST /import`
-
-Request:
-
-```json
-{ "orders": [{ "purchase_id": "id" }] }
-```
-
-Success:
-
-```json
-{
-  "success": true,
-  "new_orders": 1,
-  "skipped_orders": 0,
-  "total_orders": 11,
-  "last_synced": "2026-05-13T10:00:00+00:00"
-}
-```
-
 ### `POST /orders/update`
 
-Request:
+Updates rating and/or notes for a single order.
 
 ```json
 { "purchase_id": "id", "rating": 5, "notes": "Good" }
 ```
 
-Success:
+### `POST /import`
 
-```json
-{ "success": true, "purchase_id": "id" }
-```
+Imports a full `orders_db.json` file, preserving existing ratings and notes.
 
 ### `GET /export`
 
-Downloads `orders_db.json` as a JSON file attachment.
-
-Success: `application/json` file response.
+Downloads `orders_db.json` as a file attachment.
 
 ### `GET /health`
 
-Success:
-
-```json
-{
-  "success": true,
-  "status": "ok",
-  "total_orders": 11,
-  "last_synced": "2026-05-13T10:00:00+00:00"
-}
-```
-
-## Pagination
-
-The extension fetches Wolt order history with `limit=1000`. After each page, it checks for cursor fields such as `next_cursor`, `nextCursor`, `cursor_next`, or `next`; when a cursor exists, it requests the next page with `cursor=<value>&limit=1000`. If the API response has no cursor field, sync stops after the first page.
+Returns backend status and order count.
