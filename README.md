@@ -6,9 +6,17 @@ I order on Wolt a lot. After a while I noticed I kept reordering from restaurant
 
 So I built one.
 
-**Wolt Ratings** is a local-first tool that pulls your order history into a personal dashboard where you can rate every order 1–5 stars and leave notes for your future self. *"The garlic sauce is elite here."* *"Ask for extra spicy next time."* *"Never again."* It lives entirely on your machine — your data never touches a third-party server.
+**Wolt Ratings** is a local-first tool that pulls your complete order history into a personal dashboard where you can rate every order 1–5 stars and leave notes for your future self. *"The garlic sauce is elite here."* *"Ask for extra spicy next time."* *"Never again."* It lives entirely on your machine — your data never touches a third-party server.
 
-![Dashboard screenshot placeholder](https://placehold.co/1200x600/0f0f0f/009de0?text=Wolt+Ratings+Dashboard)
+---
+
+## Screenshots
+
+![Dashboard](screenshots/dashboard.jpg)
+
+![Venue Modal](screenshots/venue_modal.jpg)
+
+![Extension Popup](screenshots/extension.jpg)
 
 ---
 
@@ -25,9 +33,9 @@ Three components, each doing one job:
                                             └──────────────────────┘
 ```
 
-**The extension** injects a content script into wolt.com that reads your session token directly from the page's localStorage — no login scraping, no password required. One click of "Sync Now" fetches your last 50 orders from Wolt's API and sends them to your local backend.
+**The extension** injects a content script into wolt.com that reads your session token directly from the page's localStorage — no login scraping, no password required. One click of "Sync Now" fetches your full order history from Wolt's API and sends it to your local backend.
 
-**The backend** (Flask + a plain JSON file) merges incoming orders intelligently: new orders are added, existing ones are never touched. Your ratings and notes are safe no matter how many times you sync.
+**The backend** (Flask + a plain JSON file) merges incoming orders intelligently: new orders are added, existing ones are never overwritten. Your ratings and notes are safe no matter how many times you sync.
 
 **The dashboard** is a clean, searchable table. Click stars to rate, click the notes field to annotate. Everything saves instantly on interaction.
 
@@ -35,24 +43,42 @@ Three components, each doing one job:
 
 ## Features
 
-- **One-click sync** — browser extension captures your session token automatically and fetches orders with a single button press
-- **Non-destructive merge** — re-syncing never overwrites your saved ratings or notes
-- **Star ratings** — rate any order 1–5; saved the moment you click
-- **Free-text notes** — annotate dishes, flag bad experiences, remind yourself what to reorder
-- **Search & filter** — find orders by restaurant or dish name; hide failed orders; show only rated orders
-- **Sort** — newest first, oldest first, highest rated, venue A–Z
-- **Sync summary** — popup tells you exactly how many new orders were added vs. already existed
-- **Local-first** — everything runs on `localhost`; your order history never leaves your machine
+### Dashboard
+- **Stats bar** — live cards showing orders shown, total spent, average order value, average rating (with decimal precision), top venue with order count and total spend, and unrated order count
+- **Venue modal** — click any restaurant name to see a full breakdown: total orders, money spent, average rating, most-ordered items, and a complete order history with per-order ratings and notes
+- **SVG star ratings** — click to rate 1–5 stars; hover previews the selection; saves immediately
+- **Free-text notes** — annotate any order; saves on blur
+- **Search** — filter by restaurant name or dish in real time
+- **Rated only filter** — show only orders that have been rated
+- **Sort** — newest first, oldest first, highest rated, highest value, venue A–Z
+- **Infinite scroll** — orders load in batches of 25 as you scroll
+- **Export** — download your full database as `orders_db.json`
+- **Import** — load a previously exported JSON file to merge orders across devices; existing ratings and notes are preserved
+- **European number format** — amounts displayed as `14,68€`
+- **Custom Voltymore font** for headings; Roboto for body text
+
+### Extension
+- **One-click sync** — captures your Wolt session token automatically via content script
+- **Token validity indicator** — green dot when credentials are fresh, grey icon when expired
+- **Server status check** — shows backend order count and last sync time before you sync
+- **Sync summary** — reports new orders added vs. already in database
+- **Voltymore font** in the popup header
+
+### Backend
+- **Non-destructive merge** — re-syncing never overwrites ratings or notes
+- **`/import` endpoint** — merge a full JSON export back into the database
+- **`/health` endpoint** — used by the extension to check server status
 
 ---
 
 ## Stack
 
-| Layer | Technology | Why |
-|-------|------------|-----|
-| Extension | Chrome MV3, content script | Reads JWT from page localStorage — more reliable than header interception |
-| Backend | Python 3, Flask, Flask-CORS | Zero-dependency local server; JSON file is human-readable and portable |
-| Frontend | Vanilla JS, Tailwind CDN | No build step — `index.html` is served directly by Flask |
+| Layer | Technology |
+|-------|------------|
+| Extension | Chrome / Edge MV3, content script, service worker |
+| Backend | Python 3, Flask, Flask-CORS, plain JSON file |
+| Frontend | Vanilla JS, custom CSS (no framework, no build step) |
+| Font | Voltymore (headings), Roboto (body) |
 
 No Node.js. No npm. No bundler. Just `python backend/app.py` and you're running.
 
@@ -77,7 +103,7 @@ cd wolt-ratings
 ### 2. Install Python dependencies
 
 ```bash
-pip install -r backend/requirements.txt
+pip install flask flask-cors
 ```
 
 ### 3. Start the backend
@@ -86,7 +112,7 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-The server starts at `http://localhost:5000`. The dashboard is served from the same process.
+The server starts at `http://localhost:5000`. The dashboard is served from the same process — open it in your browser.
 
 ### 4. Install the browser extension
 
@@ -96,7 +122,7 @@ The server starts at `http://localhost:5000`. The dashboard is served from the s
 
 The Wolt Ratings icon appears in your toolbar. Pin it for easy access.
 
-> If the extension icon appears broken, run `python extension/generate_icons.py` once, then reload the extension.
+> To regenerate the extension icons (cyan circle with white star), run `python generate_icons.py` from the project root.
 
 ---
 
@@ -104,23 +130,26 @@ The Wolt Ratings icon appears in your toolbar. Pin it for easy access.
 
 ### Syncing your orders
 
-1. Open **[wolt.com](https://wolt.com)** — any page, but the order history page works best
-2. Wait a moment for the page to fully load
-3. Click the **Wolt Ratings** toolbar icon — you should see a green dot: *"Credentials captured"*
-4. Click **Sync Now**
-5. The popup reports: *"12 new orders added, 38 already in database"*
-6. Open `http://localhost:5000` — your orders are there
+1. Open **[wolt.com](https://wolt.com)** and let the page fully load
+2. Click the **Wolt Ratings** toolbar icon — the auth indicator should show green: *"Credentials captured"*
+3. Click **Sync Now**
+4. The popup reports how many new orders were added
+5. Open `http://localhost:5000` — your full order history is there
 
-> **Yellow dot?** Navigate to your [Wolt order history](https://wolt.com/en/me/order-history) and reload the page. The content script will pick up your session on the next page load.
+> **No green dot?** Navigate to your [Wolt order history](https://wolt.com/en/me/order-history) and reload. The content script picks up your token on page load.
 
-> **Token expired?** Wolt JWTs last ~30 minutes. If you get a sync error after a while, just reload wolt.com and sync again.
+> **Token expired?** Wolt JWTs last ~30 minutes. If you get a sync error, reload wolt.com and sync again.
 
 ### Rating and annotating
 
 - **Stars** — click any star on a row. Saves immediately.
-- **Notes** — click the notes field, type, then click away. Saves on blur.
+- **Notes** — click the notes field, type, click away. Saves on blur.
+- **Unrated card** — click the "Unrated" stat card to instantly filter to all orders without a rating.
 
-All data lives in `backend/orders_db.json` — a plain JSON file you can read, back up, or import into anything.
+### Exporting and importing
+
+- **Export** — click the Export button in the header to download `orders_db.json`
+- **Import** — click the Import button and select a JSON file. New orders are merged in; any existing ratings and notes are kept.
 
 ---
 
@@ -129,23 +158,35 @@ All data lives in `backend/orders_db.json` — a plain JSON file you can read, b
 ```
 wolt-ratings/
 ├── extension/
-│   ├── manifest.json       # MV3 config — permissions, content script registration
-│   ├── background.js       # Service worker: stores credentials, runs sync fetch
+│   ├── manifest.json       # MV3 config — permissions, content script
+│   ├── background.js       # Service worker: stores credentials, runs sync
 │   ├── content.js          # Injected into wolt.com: reads JWT from localStorage
-│   ├── popup.html          # Extension popup UI
-│   ├── popup.js            # Popup logic: status check, sync trigger, result display
-│   ├── generate_icons.py   # One-time icon generator (pure stdlib, no Pillow)
+│   ├── popup.html          # Extension popup UI (Voltymore font, inline styles)
+│   ├── popup.js            # Status check, sync trigger, result display
+│   ├── Voltymore.ttf       # Bundled font for popup
 │   └── icons/              # PNG icons at 16, 48, 128px
 │
 ├── backend/
-│   ├── app.py              # Flask server: /sync, /update, /orders, /health
-│   ├── requirements.txt    # flask, flask-cors
-│   └── orders_db.json      # Auto-created on first sync; gitignored
+│   ├── app.py              # Flask server: /sync, /import, /update, /orders, /export, /health
+│   ├── example_orders.json # 169 example orders across 20 generic restaurants
+│   └── orders_db.json      # Your data — auto-created on first sync (gitignored)
 │
 ├── frontend/
-│   ├── index.html          # Dashboard markup + Tailwind CDN
-│   └── app.js              # Fetch, render, filter, sort, auto-save
+│   ├── index.html          # Dashboard: markup, all CSS, stat cards, modal, toasts
+│   ├── app.js              # Fetch, filter, sort, render, infinite scroll, save
+│   ├── fonts.css           # @font-face for Voltymore
+│   ├── favicon.ico         # Cyan circle + white star (16/32/48px)
+│   └── favicon.png         # 32px PNG favicon
 │
+├── font/
+│   └── Voltymore.ttf       # Custom display font (used for headings)
+│
+├── screenshots/
+│   ├── dashboard.jpg
+│   ├── venue_modal.jpg
+│   └── extension.jpg
+│
+├── generate_icons.py       # Regenerates favicons and extension icons via Pillow
 └── README.md
 ```
 
@@ -157,17 +198,19 @@ wolt-ratings/
 |--------|----------|-------------|
 | `GET` | `/` | Serves the frontend dashboard |
 | `GET` | `/orders` | Returns the full database as JSON |
-| `POST` | `/sync` | Merges incoming Wolt orders; returns diff summary |
+| `POST` | `/sync` | Merges incoming Wolt API orders; returns diff summary |
+| `POST` | `/import` | Merges a full exported JSON file; preserves existing ratings/notes |
 | `POST` | `/update` | Patches `rating` and/or `notes` for one order |
+| `GET` | `/export` | Downloads `orders_db.json` as a file attachment |
 | `GET` | `/health` | Server status and total order count |
+| `GET` | `/font/<filename>` | Serves font files from the `font/` directory |
 
-**`POST /sync` response:**
+**`POST /sync` · `POST /import` response:**
 ```json
 {
   "new_orders": 3,
-  "existing_orders": 47,
   "total_orders": 50,
-  "last_synced": "2026-05-12T10:30:00+00:00"
+  "last_synced": "2026-05-13T10:00:00+00:00"
 }
 ```
 
@@ -176,7 +219,7 @@ wolt-ratings/
 {
   "purchase_id": "abc123",
   "rating": 4,
-  "notes": "A bit too spicy this time — ask for medium next visit."
+  "notes": "A bit too spicy — ask for medium next visit."
 }
 ```
 
@@ -188,36 +231,24 @@ wolt-ratings/
 
 ```json
 {
-  "last_synced": "2026-05-12T10:30:00+00:00",
+  "last_synced": "2026-05-13T10:00:00+00:00",
   "orders": [
     {
       "purchase_id": "unique_id_string",
-      "venue_name": "Elias Döner Kebab",
-      "received_at": "09/05/2026, 20:04",
-      "items": "Pita Falafel, Pita Kebab Döner",
-      "total_amount": "€26.19",
+      "venue_name": "Golden Dragon Chinese",
+      "received_at": "10/05/2026, 19:30",
+      "items": "Kung Pao Chicken and Egg Fried Rice and Spring Rolls x2",
+      "total_amount": "€24.50",
       "status": "delivered",
       "user_custom_data": {
-        "rating": 5,
-        "notes": "The garlic sauce is elite here.",
-        "last_edited": "2026-05-10T12:00:00+00:00"
+        "rating": 4,
+        "notes": "Kung pao had great heat level.",
+        "last_edited": "2026-05-11T08:00:00+00:00"
       }
     }
   ]
 }
 ```
-
----
-
-## Possible extensions
-
-A few things I'd add if this grew:
-
-- **SQLite backend** — drop-in replacement for the JSON file; better for querying once you have hundreds of orders
-- **Export to CSV** — for when you want to analyse your spending in a spreadsheet
-- **Venue summary view** — aggregate ratings per restaurant across all visits
-- **Pagination / infinite scroll** — for long histories
-- **Dark/light theme toggle** — currently dark only
 
 ---
 
