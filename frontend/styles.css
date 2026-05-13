@@ -546,7 +546,8 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      display: block;
+      display: inline-block;
+      vertical-align: middle;
     }
 
     .venue-link:hover { color: var(--cyan); }
