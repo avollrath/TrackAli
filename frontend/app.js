@@ -6,7 +6,10 @@ const API = "http://localhost:5000";
 let allOrders = [];
 let lastSynced = null;
 
-let currentList = [];
+// Infinite scroll
+const PAGE_SIZE = 25;
+let visibleCount = PAGE_SIZE;
+let currentList  = [];
 
 // ---------------------------------------------------------------------------
 // DOM refs
@@ -26,6 +29,7 @@ const exportBtn        = document.getElementById("export-btn");
 const unratedCard      = document.getElementById("stat-unrated-card");
 const modalBackdrop    = document.getElementById("modal-backdrop");
 const modalClose       = document.getElementById("modal-close");
+const scrollSentinel   = document.getElementById("scroll-sentinel");
 
 // ---------------------------------------------------------------------------
 // Star SVG
@@ -101,10 +105,11 @@ function getFiltered() {
   });
 }
 
-function renderTable() {
+function renderTable(resetScroll = true) {
   loadingState.style.display = "none";
 
   currentList = getFiltered();
+  if (resetScroll) visibleCount = PAGE_SIZE;
 
   updateStats(currentList);
   countLabel.textContent = `${currentList.length} of ${allOrders.length} orders`;
@@ -118,9 +123,26 @@ function renderTable() {
   emptyState.style.display = "none";
   tableContainer.classList.remove("hidden");
 
-  tbody.innerHTML = "";
-  for (const order of currentList) tbody.appendChild(buildRow(order));
+  renderRows();
 }
+
+function renderRows() {
+  tbody.innerHTML = "";
+  const slice = currentList.slice(0, visibleCount);
+  for (const order of slice) tbody.appendChild(buildRow(order));
+}
+
+// ---------------------------------------------------------------------------
+// Infinite scroll via IntersectionObserver
+// ---------------------------------------------------------------------------
+const scrollObserver = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting && visibleCount < currentList.length) {
+    visibleCount += PAGE_SIZE;
+    renderRows();
+  }
+}, { rootMargin: "200px" });
+
+if (scrollSentinel) scrollObserver.observe(scrollSentinel);
 
 // ---------------------------------------------------------------------------
 // Stats — delivered only (failed already excluded from allOrders)
@@ -355,13 +377,13 @@ unratedCard.addEventListener("click", () => {
   searchInput.value = "";
 
   const list = allOrders.filter(o => !o.user_custom_data?.rating);
-  currentList = list;
+  currentList  = list;
+  visibleCount = PAGE_SIZE;
   updateStats(list);
   countLabel.textContent = `${list.length} of ${allOrders.length} orders`;
   emptyState.style.display = list.length === 0 ? "flex" : "none";
   tableContainer.classList.toggle("hidden", list.length === 0);
-  tbody.innerHTML = "";
-  for (const order of list) tbody.appendChild(buildRow(order));
+  renderRows();
 });
 
 // ---------------------------------------------------------------------------
@@ -406,9 +428,9 @@ function escHtml(str) {
 // ---------------------------------------------------------------------------
 // Event listeners
 // ---------------------------------------------------------------------------
-searchInput.addEventListener("input", () => renderTable());
-onlyRatedChk.addEventListener("change", () => renderTable());
-sortSelect.addEventListener("change", () => renderTable());
+searchInput.addEventListener("input", () => renderTable(true));
+onlyRatedChk.addEventListener("change", () => renderTable(true));
+sortSelect.addEventListener("change", () => renderTable(true));
 
 onlyRatedChk.addEventListener("change", () => {
   onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
