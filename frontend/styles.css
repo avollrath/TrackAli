@@ -489,7 +489,6 @@
     td {
       padding: 14px 16px;
       vertical-align: middle;
-      align-content: center;
       font-size: 14px;
     }
 
@@ -534,6 +533,7 @@
       font-family: 'Voltymore', sans-serif;
       font-weight: 900;
       font-size: 20px;
+      line-height: 1;
       color: var(--text);
       cursor: pointer;
       background: none;
@@ -573,6 +573,7 @@
       color: var(--color-text-subtle);
       font-size: 12px;
       white-space: nowrap;
+      line-height: 1;
     }
 
     /* Total */
@@ -617,6 +618,7 @@
       border-bottom: 1px solid transparent;
       font-family: 'Roboto', sans-serif;
       font-size: 12px;
+      line-height: 1;
       color: var(--color-text-muted);
       padding: 2px 0;
       transition: border-color 0.15s;
