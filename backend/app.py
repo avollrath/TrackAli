@@ -10,12 +10,9 @@ CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "font")
 DB_LOCK = threading.Lock()
 
-
-# ---------------------------------------------------------------------------
-# DB helpers
-# ---------------------------------------------------------------------------
 
 def load_db():
     if not os.path.exists(DB_PATH):
@@ -32,62 +29,61 @@ def save_db(db):
         os.replace(tmp_path, DB_PATH)
 
 
+def utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def error_response(message, status=400):
+    return jsonify({"success": False, "error": message}), status
+
+
 def get_json_body():
     if not request.is_json:
-        return None, (jsonify({"error": "Invalid JSON"}), 400)
+        return None, error_response("Invalid JSON")
     try:
         return request.get_json(), None
     except Exception:
-        return None, (jsonify({"error": "Invalid JSON"}), 400)
+        return None, error_response("Invalid JSON")
+
+
+def normalize_received_at(value):
+    if not value:
+        return ""
+    text = str(value)
+    try:
+        if "T" in text:
+            dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            return dt.strftime("%d/%m/%Y, %H:%M")
+        dt = datetime.strptime(text, "%d/%m/%Y, %H:%M")
+        return dt.strftime("%d/%m/%Y, %H:%M")
+    except ValueError:
+        return text
 
 
 def parse_order(raw: dict) -> dict:
-    """Normalise a raw Wolt API order into our storage schema."""
-    items_list = raw.get("items") or []
-    if isinstance(items_list, list):
+    """Normalise a flat Wolt API order into our storage schema."""
+    items = raw.get("items") or ""
+    if isinstance(items, list):
         items_str = ", ".join(
-            i.get("name", "") for i in items_list if isinstance(i, dict)
+            item.get("name", "") if isinstance(item, dict) else str(item)
+            for item in items
         )
     else:
-        items_str = str(items_list)
-
-    total = raw.get("total_price") or raw.get("total_amount") or {}
-    if isinstance(total, dict):
-        amount = total.get("amount", 0)
-        currency = total.get("currency", "EUR")
-        symbol = "€" if currency == "EUR" else currency
-        total_str = f"{symbol}{amount / 100:.2f}"
-    else:
-        total_str = str(total)
-
-    received = raw.get("received_at") or raw.get("created_at") or ""
-    if received and "T" in received:
-        try:
-            dt = datetime.fromisoformat(received.replace("Z", "+00:00"))
-            received = dt.strftime("%d/%m/%Y, %H:%M")
-        except ValueError:
-            pass
+        items_str = str(items)
 
     return {
-        "purchase_id": raw.get("purchase_id") or raw.get("id") or "",
-        "venue_name": raw.get("venue_name") or raw.get("venue", {}).get("name", "Unknown"),
-        "received_at": received,
+        "purchase_id": str(raw.get("purchase_id") or ""),
+        "venue_name": str(raw.get("venue_name") or "Unknown"),
+        "received_at": normalize_received_at(raw.get("received_at")),
         "items": items_str,
-        "total_amount": total_str,
-        "status": raw.get("status", "unknown"),
+        "total_amount": str(raw.get("total_amount") or ""),
+        "status": str(raw.get("status") or "unknown"),
         "user_custom_data": {
             "rating": 0,
             "notes": "",
             "last_edited": None,
         },
     }
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "font")
 
 
 @app.route("/")
@@ -106,31 +102,34 @@ def sync():
     if error:
         return error
     if not payload:
-        return jsonify({"error": "Empty payload"}), 400
+        return error_response("Empty payload")
 
     raw_orders = payload.get("orders", [])
     if not isinstance(raw_orders, list):
-        return jsonify({"error": "Expected 'orders' array"}), 400
+        return error_response("Expected 'orders' array")
 
     db = load_db()
     existing_ids = {o["purchase_id"] for o in db["orders"]}
 
     added = 0
     for raw in raw_orders:
-        order = parse_order(raw)
-        pid = order["purchase_id"]
-        if not pid:
+        if not isinstance(raw, dict):
             continue
-        if pid not in existing_ids:
+        order = parse_order(raw)
+        purchase_id = order["purchase_id"]
+        if not purchase_id:
+            continue
+        if purchase_id not in existing_ids:
             db["orders"].append(order)
-            existing_ids.add(pid)
+            existing_ids.add(purchase_id)
             added += 1
 
-    db["last_synced"] = datetime.now(timezone.utc).isoformat()
+    db["last_synced"] = utc_now_iso()
     save_db(db)
 
     existing = len(db["orders"]) - added
     return jsonify({
+        "success": True,
         "new_orders": added,
         "existing_orders": existing,
         "total_orders": len(db["orders"]),
@@ -141,7 +140,7 @@ def sync():
 @app.route("/orders", methods=["GET"])
 def orders():
     db = load_db()
-    return jsonify(db)
+    return jsonify({"success": True, **db})
 
 
 @app.route("/update", methods=["POST"])
@@ -150,25 +149,31 @@ def update():
     if error:
         return error
     if not body:
-        return jsonify({"error": "Empty body"}), 400
+        return error_response("Empty body")
 
     purchase_id = body.get("purchase_id")
     if not purchase_id:
-        return jsonify({"error": "purchase_id required"}), 400
+        return error_response("purchase_id required")
 
     db = load_db()
     for order in db["orders"]:
         if order["purchase_id"] == purchase_id:
-            ucd = order.setdefault("user_custom_data", {})
+            user_custom_data = order.setdefault("user_custom_data", {})
             if "rating" in body:
-                ucd["rating"] = int(body["rating"])
+                try:
+                    rating = int(body["rating"])
+                except (TypeError, ValueError):
+                    return error_response("rating must be an integer")
+                if rating < 0 or rating > 5:
+                    return error_response("rating must be between 0 and 5")
+                user_custom_data["rating"] = rating
             if "notes" in body:
-                ucd["notes"] = str(body["notes"])
-            ucd["last_edited"] = datetime.now(timezone.utc).isoformat()
+                user_custom_data["notes"] = str(body["notes"])
+            user_custom_data["last_edited"] = utc_now_iso()
             save_db(db)
             return jsonify({"success": True, "purchase_id": purchase_id})
 
-    return jsonify({"error": "Order not found"}), 404
+    return error_response("Order not found", 404)
 
 
 @app.route("/import", methods=["POST"])
@@ -177,39 +182,41 @@ def import_db():
     if error:
         return error
     if not payload or "orders" not in payload:
-        return jsonify({"error": "Expected JSON with 'orders' array"}), 400
+        return error_response("Expected JSON with 'orders' array")
 
     incoming = payload.get("orders", [])
     if not isinstance(incoming, list):
-        return jsonify({"error": "Expected 'orders' array"}), 400
+        return error_response("Expected 'orders' array")
 
     db = load_db()
     existing = {o["purchase_id"]: o for o in db["orders"]}
 
     added = 0
+    skipped = 0
     for order in incoming:
-        pid = order.get("purchase_id")
-        if not pid:
+        purchase_id = order.get("purchase_id") if isinstance(order, dict) else None
+        if not isinstance(purchase_id, str) or not purchase_id.strip():
+            skipped += 1
             continue
-        if pid not in existing:
-            # Preserve user_custom_data if present, otherwise default
+        if purchase_id not in existing:
             if "user_custom_data" not in order:
                 order["user_custom_data"] = {"rating": 0, "notes": "", "last_edited": None}
-            existing[pid] = order
+            existing[purchase_id] = order
             added += 1
         else:
-            # Keep existing ratings/notes; update order fields only
-            ucd = existing[pid].get("user_custom_data") or {}
-            existing[pid] = order
-            if ucd.get("rating") or ucd.get("notes"):
-                existing[pid]["user_custom_data"] = ucd
+            user_custom_data = existing[purchase_id].get("user_custom_data") or {}
+            existing[purchase_id] = order
+            if user_custom_data.get("rating") or user_custom_data.get("notes"):
+                existing[purchase_id]["user_custom_data"] = user_custom_data
 
     db["orders"] = list(existing.values())
-    db["last_synced"] = datetime.now(timezone.utc).isoformat()
+    db["last_synced"] = utc_now_iso()
     save_db(db)
 
     return jsonify({
+        "success": True,
         "new_orders": added,
+        "skipped_orders": skipped,
         "total_orders": len(db["orders"]),
         "last_synced": db["last_synced"],
     })
@@ -218,7 +225,7 @@ def import_db():
 @app.route("/export", methods=["GET"])
 def export():
     if not os.path.exists(DB_PATH):
-        return jsonify({"error": "No database yet"}), 404
+        return error_response("No database yet", 404)
     return send_file(
         DB_PATH,
         mimetype="application/json",
@@ -231,6 +238,7 @@ def export():
 def health():
     db = load_db()
     return jsonify({
+        "success": True,
         "status": "ok",
         "total_orders": len(db["orders"]),
         "last_synced": db.get("last_synced"),
