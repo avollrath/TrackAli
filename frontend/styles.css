@@ -74,9 +74,11 @@
     .hidden-input { display: none; }
     .text-right { text-align: right; }
     .col-date { width: 130px; }
-    .col-venue { width: 360px; }
+    .col-venue { width: 260px; }
+    .col-items { width: 220px; }
     .col-total { width: 90px; }
-    .col-rating { width: 130px; }
+    .col-rating { width: 160px; }
+    .col-notes { min-width: 160px; }
 
     .stat-rating-inline {
       display: flex;
@@ -569,7 +571,6 @@
 
     /* Items cell */
     .items-cell {
-      max-width: 120px;
       color: var(--color-text-muted);
     }
 
@@ -633,7 +634,7 @@
 
     /* Notes */
     .notes-area {
-      width: 400px;
+      width: 100%;
       resize: none;
       field-sizing: content;
       min-height: 28px;
