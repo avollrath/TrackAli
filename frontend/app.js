@@ -29,6 +29,7 @@ async function apiFetch(path, options = {}) {
 // ---------------------------------------------------------------------------
 let allOrders = [];
 let lastSynced = null;
+let demoMode = localStorage.getItem("demoMode") === "1";
 
 // Infinite scroll
 const PAGE_SIZE = 25;
@@ -52,6 +53,7 @@ const skeletonTbody    = document.getElementById("skeleton-tbody");
 const exportBtn        = document.getElementById("export-btn");
 const importBtn        = document.getElementById("import-btn");
 const importFile       = document.getElementById("import-file");
+const demoBtn          = document.getElementById("demo-btn");
 const unratedCard      = document.getElementById("stat-unrated-card");
 const modalBackdrop    = document.getElementById("modal-backdrop");
 const modalClose       = document.getElementById("modal-close");
@@ -84,7 +86,7 @@ function buildSkeletonRows(n = 8) {
 async function loadOrders() {
   buildSkeletonRows();
   try {
-    const res = await apiFetch("/orders");
+    const res = await apiFetch(`/orders${demoMode ? "?demo=1" : ""}`);
     const data = await res.json();
     // Always exclude failed orders
     allOrders = (data.orders || []).filter(o => o.status === "delivered");
@@ -417,7 +419,7 @@ function showToast(message, type = "info", duration = 4000) {
 // ---------------------------------------------------------------------------
 // Import
 // ---------------------------------------------------------------------------
-importBtn.addEventListener("click", () => importFile.click());
+importBtn.addEventListener("click", () => { if (!demoMode) importFile.click(); });
 
 importFile.addEventListener("change", async () => {
   const file = importFile.files[0];
@@ -443,6 +445,7 @@ importFile.addEventListener("change", async () => {
 // Export
 // ---------------------------------------------------------------------------
 exportBtn.addEventListener("click", async () => {
+  if (demoMode) return;
   try {
     const res = await apiFetch("/export");
     const blob = await res.blob();
@@ -477,6 +480,7 @@ unratedCard.addEventListener("click", () => {
 // API
 // ---------------------------------------------------------------------------
 async function saveUpdate(purchaseId, fields, revert) {
+  if (demoMode) return;
   try {
     await apiFetch("/orders/update", {
       method: "POST",
@@ -523,6 +527,24 @@ onlyRatedChk.addEventListener("change", () => {
   onlyRatedChk.closest(".filter-chip").classList.toggle("active", onlyRatedChk.checked);
   renderTable(true);
 });
+
+// ---------------------------------------------------------------------------
+// Demo mode
+// ---------------------------------------------------------------------------
+function applyDemoMode() {
+  demoBtn.classList.toggle("active", demoMode);
+  importBtn.disabled = demoMode;
+  exportBtn.disabled = demoMode;
+}
+
+demoBtn.addEventListener("click", () => {
+  demoMode = !demoMode;
+  localStorage.setItem("demoMode", demoMode ? "1" : "0");
+  applyDemoMode();
+  loadOrders();
+});
+
+applyDemoMode();
 
 setInterval(updateLastSynced, 60_000);
 

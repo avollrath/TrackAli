@@ -9,15 +9,17 @@ app = Flask(__name__, static_folder="../frontend", static_url_path="")
 CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
+DEMO_DB_PATH = os.path.join(os.path.dirname(__file__), "example_orders.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "fonts")
 DB_LOCK = threading.Lock()
 
 
-def load_db():
-    if not os.path.exists(DB_PATH):
+def load_db(demo=False):
+    path = DEMO_DB_PATH if demo else DB_PATH
+    if not os.path.exists(path):
         return {"last_synced": None, "orders": []}
-    with open(DB_PATH, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -139,8 +141,9 @@ def sync():
 
 @app.route("/orders", methods=["GET"])
 def orders():
-    db = load_db()
-    return jsonify({"success": True, **db})
+    demo = request.args.get("demo") == "1"
+    db = load_db(demo=demo)
+    return jsonify({"success": True, "demo": demo, **db})
 
 
 @app.route("/orders/update", methods=["POST"])

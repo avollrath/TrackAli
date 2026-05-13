@@ -223,6 +223,23 @@
       color: var(--text);
     }
 
+    .btn-demo {
+      background: var(--surface);
+      color: var(--color-text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-demo:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .btn-demo.active {
+      background: #fff8e6;
+      color: #b45309;
+      border-color: #f59e0b;
+    }
+
     /* Toolbar */
     .toolbar {
       background: var(--surface);
