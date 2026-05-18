@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory, send_file
@@ -10,9 +11,21 @@ CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "orders_db.json")
 DEMO_DB_PATH = os.path.join(os.path.dirname(__file__), "example_orders.json")
+EXCHANGE_RATES_PATH = os.path.join(os.path.dirname(__file__), "exchange_rates.json")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "fonts")
 DB_LOCK = threading.Lock()
+MONEY_RE = re.compile(r"(?P<prefix>[A-Z]{3}|€)?\s*(?P<amount>\d+(?:[.,]\d+)?)\s*(?P<suffix>[A-Z]{3}|€)?")
+
+
+def load_exchange_rates():
+    if not os.path.exists(EXCHANGE_RATES_PATH):
+        return {"rates_to_eur": {"EUR": {"default": 1.0}}}
+    with open(EXCHANGE_RATES_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+EXCHANGE_RATES = load_exchange_rates()
 
 
 def load_db(demo=False):
@@ -20,7 +33,10 @@ def load_db(demo=False):
     if not os.path.exists(path):
         return {"last_synced": None, "orders": []}
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        db = json.load(f)
+    for order in db.get("orders", []):
+        normalize_order_money(order)
+    return db
 
 
 def save_db(db):
@@ -62,6 +78,62 @@ def normalize_received_at(value):
         return text
 
 
+def order_date_key(received_at):
+    if not received_at:
+        return None
+    text = str(received_at)
+    for fmt in ("%d/%m/%Y, %H:%M", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            return datetime.strptime(text.replace("Z", "+0000"), fmt).date().isoformat()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
+    except ValueError:
+        return None
+
+
+def parse_total_amount(value):
+    if value is None:
+        return None, None
+    text = str(value).strip()
+    match = MONEY_RE.search(text)
+    if not match:
+        return None, None
+    amount = float(match.group("amount").replace(",", "."))
+    currency = match.group("prefix") or match.group("suffix")
+    if currency == "€":
+        currency = "EUR"
+    if not currency and ("€" in text or "EUR" in text.upper() or "â‚¬" in text):
+        currency = "EUR"
+    return amount, currency
+
+
+def rate_to_eur(currency, date_key):
+    if not currency:
+        return None, None
+    rates = EXCHANGE_RATES.get("rates_to_eur", {}).get(currency.upper())
+    if not rates:
+        return None, None
+    if date_key and date_key in rates:
+        return rates[date_key], date_key
+    if "default" in rates:
+        return rates["default"], "default"
+    return None, None
+
+
+def normalize_order_money(order):
+    amount, currency = parse_total_amount(order.get("total_amount"))
+    date_key = order_date_key(order.get("received_at"))
+    rate, rate_date = rate_to_eur(currency, date_key)
+    order["total_amount_value"] = amount
+    order["total_amount_currency"] = currency
+    order["exchange_rate_to_eur"] = rate
+    order["exchange_rate_date"] = rate_date
+    order["total_amount_eur"] = round(amount * rate, 2) if amount is not None and rate is not None else None
+    return order
+
+
 def parse_order(raw: dict) -> dict:
     """Normalise a flat Wolt API order into our storage schema."""
     items = raw.get("items") or ""
@@ -73,7 +145,7 @@ def parse_order(raw: dict) -> dict:
     else:
         items_str = str(items)
 
-    return {
+    return normalize_order_money({
         "purchase_id": str(raw.get("purchase_id") or ""),
         "venue_name": str(raw.get("venue_name") or "Unknown"),
         "received_at": normalize_received_at(raw.get("received_at")),
@@ -85,7 +157,7 @@ def parse_order(raw: dict) -> dict:
             "notes": "",
             "last_edited": None,
         },
-    }
+    })
 
 
 @app.route("/")
@@ -204,11 +276,13 @@ def import_db():
         if purchase_id not in existing:
             if "user_custom_data" not in order:
                 order["user_custom_data"] = {"rating": 0, "notes": "", "last_edited": None}
+            normalize_order_money(order)
             existing[purchase_id] = order
             added += 1
         else:
             user_custom_data = existing[purchase_id].get("user_custom_data") or {}
             existing[purchase_id] = order
+            normalize_order_money(existing[purchase_id])
             if user_custom_data.get("rating") or user_custom_data.get("notes"):
                 existing[purchase_id]["user_custom_data"] = user_custom_data
 
