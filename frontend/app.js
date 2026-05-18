@@ -136,7 +136,7 @@ function aggregateByVenue(orders) {
   }
   return [...map.entries()].map(([venue_name, group]) => {
     const sorted = group.slice().sort((a, b) => compareDates(a.received_at, b.received_at));
-    const totalAmount = group.reduce((s, o) => s + parseAmount(o.total_amount), 0);
+    const totalAmountEur = group.reduce((s, o) => s + amountEur(o), 0);
     const rated = group.filter(o => o.user_custom_data?.rating > 0);
     const avgRating = rated.length
       ? rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length
@@ -147,7 +147,7 @@ function aggregateByVenue(orders) {
       venue_name,
       received_at: sorted[0].received_at,
       received_at_last: sorted[sorted.length - 1].received_at,
-      total_amount: `${totalAmount.toFixed(2)} EUR`,
+      total_amount_eur: totalAmountEur,
       user_custom_data: { rating: Math.round(avgRating * 10) / 10, notes: "" },
       _avgRating: avgRating,
       _orderCount: group.length,
@@ -190,7 +190,7 @@ function getFiltered() {
   return list.slice().sort((a, b) => {
     if (sort === "date_desc")   return compareDates(b._venueRow ? b.received_at_last : b.received_at, a._venueRow ? a.received_at_last : a.received_at);
     if (sort === "date_asc")    return compareDates(a.received_at, b.received_at);
-    if (sort === "value_desc")  return parseAmount(b.total_amount) - parseAmount(a.total_amount);
+    if (sort === "value_desc")  return amountEur(b) - amountEur(a);
     if (sort === "venue_asc")   return a.venue_name.localeCompare(b.venue_name);
     return 0;
   });
@@ -254,11 +254,12 @@ if (scrollSentinel) gradientObserver.observe(scrollSentinel);
 // Stats - delivered only (failed already excluded from allOrders)
 // ---------------------------------------------------------------------------
 function updateStats(list) {
-  const spent = list.reduce((sum, o) => sum + parseAmount(o.total_amount), 0);
+  const priced = list.filter(hasEurAmount);
+  const spent = priced.reduce((sum, o) => sum + amountEur(o), 0);
   document.getElementById("stat-count").textContent      = list.length;
-  document.getElementById("stat-spent").textContent      = list.length ? fmtEuro(spent) : "-";
+  document.getElementById("stat-spent").textContent      = priced.length ? fmtEuro(spent) : "-";
   document.getElementById("stat-avg-value").textContent  =
-    list.length ? fmtEuro(spent / list.length) : "-";
+    priced.length ? fmtEuro(spent / priced.length) : "-";
 
   const rated = list.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
@@ -271,7 +272,7 @@ function updateStats(list) {
   const venueSpent = {};
   for (const o of list) {
     venueCount[o.venue_name] = (venueCount[o.venue_name] || 0) + 1;
-    venueSpent[o.venue_name] = (venueSpent[o.venue_name] || 0) + parseAmount(o.total_amount);
+    venueSpent[o.venue_name] = (venueSpent[o.venue_name] || 0) + amountEur(o);
   }
   const topVenue = Object.entries(venueCount).sort((a, b) => b[1] - a[1])[0];
   document.getElementById("stat-top-venue").textContent = topVenue ? topVenue[0] : "-";
@@ -282,14 +283,26 @@ function updateStats(list) {
   document.getElementById("stat-unrated").textContent = unratedCount;
 }
 
-function parseAmount(str) {
-  if (!str) return 0;
-  const n = parseFloat(String(str).replace(/[^0-9.]/g, ""));
-  return isNaN(n) ? 0 : n;
+function amountEur(order) {
+  const amount = Number(order?.total_amount_eur);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function hasEurAmount(order) {
+  return Number.isFinite(Number(order?.total_amount_eur));
 }
 
 function fmtEuro(amount) {
-  return `${amount.toFixed(2).replace(".", ",")}€`;
+  return `${amount.toFixed(2).replace(".", ",")}\u20ac`;
+}
+
+function convertedAmountHtml(order) {
+  if (!hasEurAmount(order) || order.total_amount_currency === "EUR") return "";
+  return `<div class="converted-amount">${escHtml(fmtEuro(amountEur(order)))}</div>`;
+}
+
+function originalAmount(order) {
+  return order.total_amount || "-";
 }
 
 // ---------------------------------------------------------------------------
@@ -309,10 +322,10 @@ function renderRowHtml(order) {
     return `
       <td class="order-date-cell">${dateCell}</td>
       <td><button class="venue-link" title="${escHtml(order.venue_name)}">${escHtml(order.venue_name)}</button></td>
-      <td class="items-cell venue-row-na">—</td>
-      <td class="total-cell text-right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
+      <td class="items-cell venue-row-na">-</td>
+      <td class="total-cell text-right">${escHtml(fmtEuro(amountEur(order)))}</td>
       <td><div class="stars-wrap">${starsHtml}</div></td>
-      <td class="venue-row-na">—</td>`;
+      <td class="venue-row-na">-</td>`;
   }
 
   return `
@@ -321,10 +334,10 @@ function renderRowHtml(order) {
     <td class="items-cell">
       ${splitItems(order.items).map(i => `<div class="item-line">${escHtml(i)}</div>`).join("")}
     </td>
-    <td class="total-cell text-right">${escHtml(fmtEuro(parseAmount(order.total_amount)))}</td>
+    <td class="total-cell text-right">${escHtml(originalAmount(order))}${convertedAmountHtml(order)}</td>
     <td><div class="stars-wrap" id="stars-${escHtml(order.purchase_id)}">${buildStars(userCustomData.rating, order.purchase_id)}</div></td>
     <td>
-      <textarea class="notes-area" placeholder="Add a note…" data-id="${escHtml(order.purchase_id)}">${escHtml(userCustomData.notes)}</textarea>
+      <textarea class="notes-area" placeholder="Add a note..." data-id="${escHtml(order.purchase_id)}">${escHtml(userCustomData.notes)}</textarea>
     </td>`;
 }
 
@@ -412,7 +425,7 @@ function openModal(venueName) {
 }
 
 function getVenueStats(orders, venueName) {
-  const spent = orders.reduce((s, o) => s + parseAmount(o.total_amount), 0);
+  const spent = orders.reduce((s, o) => s + amountEur(o), 0);
   const rated = orders.filter(o => o.user_custom_data?.rating > 0);
   const avgRating = rated.length
     ? (rated.reduce((s, o) => s + o.user_custom_data.rating, 0) / rated.length).toFixed(1)
@@ -492,7 +505,7 @@ function buildModalOrderHistory(orders) {
           ${itemLines}
           ${userCustomData.notes ? `<div class="modal-order-note">${escHtml(userCustomData.notes)}</div>` : ""}
         </div>
-        <div class="modal-order-total">${fmtEuro(parseAmount(order.total_amount))}</div>
+        <div class="modal-order-total">${escHtml(originalAmount(order))}${convertedAmountHtml(order)}</div>
         <div class="modal-order-stars" id="modal-stars-${escHtml(order.purchase_id)}">${buildModalStars(userCustomData.rating, order.purchase_id)}</div>
       </div>`;
   }).join("");
@@ -684,6 +697,3 @@ applyDemoMode();
 setInterval(updateLastSynced, 60_000);
 
 loadOrders();
-
-
-
