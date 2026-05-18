@@ -77,25 +77,28 @@ If the indicator stays yellow, open your Wolt order history page and wait for it
 
 ```text
 wolt-ratings/
-├── backend/
-│   ├── app.py
-│   ├── example_orders.json
-│   └── requirements.txt
-├── extension/
-│   ├── background.js
-│   ├── content.js
-│   ├── manifest.json
-│   ├── popup.html / popup.js / popup.css
-│   └── icons/
-├── frontend/
-│   ├── index.html
-│   ├── app.js
-│   ├── styles.css
-│   └── fonts/
-└── screenshots/
+|-- backend/
+|   |-- app.py
+|   |-- example_orders.json
+|   |-- exchange_rates.json
+|   |-- migrate_money.py
+|   `-- requirements.txt
+|-- extension/
+|   |-- background.js
+|   |-- content.js
+|   |-- manifest.json
+|   |-- popup.html / popup.js / popup.css
+|   `-- icons/
+|-- frontend/
+|   |-- index.html
+|   |-- app.js
+|   |-- styles.css
+|   |-- assets/
+|   `-- fonts/
+`-- screenshots/
 ```
 
-`backend/orders_db.json` is created on first sync and is gitignored.
+`backend/orders_db.json` is created on first sync and is gitignored. Run `python backend/migrate_money.py` after updating an older local database so stored orders get normalized money fields.
 
 ---
 
@@ -111,6 +114,11 @@ wolt-ratings/
       "received_at": "13/05/2026, 19:30",
       "items": "Item one and Item two",
       "total_amount": "24,50 EUR",
+      "total_amount_value": 24.5,
+      "total_amount_currency": "EUR",
+      "total_amount_eur": 24.5,
+      "exchange_rate_to_eur": 1.0,
+      "exchange_rate_date": "default",
       "status": "delivered",
       "user_custom_data": {
         "rating": 4,
@@ -127,7 +135,12 @@ wolt-ratings/
 | `purchase_id` | Stable Wolt order ID |
 | `venue_name` | Restaurant name from Wolt |
 | `received_at` | Normalized to `DD/MM/YYYY, HH:MM` |
-| `total_amount` | Wolt display string |
+| `total_amount` | Original Wolt display string shown in order rows |
+| `total_amount_value` | Numeric value parsed from `total_amount` |
+| `total_amount_currency` | Parsed ISO currency code, for example `EUR`, `SEK`, or `NOK` |
+| `total_amount_eur` | Converted EUR value used for dashboard totals, averages, sorting, and venue stats |
+| `exchange_rate_to_eur` | Rate used to convert from `total_amount_currency` to EUR |
+| `exchange_rate_date` | Historical rate date, or `default` for EUR |
 | `status` | Dashboard only shows `delivered` orders |
 | `user_custom_data.rating` | Local star rating, 0–5 |
 | `user_custom_data.notes` | Local free-text note |
@@ -145,11 +158,11 @@ All error responses follow:
 
 ### `GET /orders?demo=1`
 
-Returns the full database. Pass `?demo=1` to read `example_orders.json` instead.
+Returns the full database. Pass `?demo=1` to read `example_orders.json` instead. Orders include original Wolt totals plus normalized EUR fields for calculations.
 
 ### `POST /sync`
 
-Accepts raw Wolt orders from the extension and stores new ones.
+Accepts raw Wolt orders from the extension, normalizes dates and money fields, and stores new ones.
 
 ```json
 { "orders": [{ "purchase_id": "id", "venue_name": "Venue" }] }
@@ -174,3 +187,13 @@ Downloads `orders_db.json` as a file attachment.
 ### `GET /health`
 
 Returns backend status and order count.
+
+---
+
+## Currency Conversion
+
+The app keeps Wolt's original `total_amount` string for display, then stores parsed money fields beside it. Dashboard totals, average order value, highest value sorting, and venue modal totals use `total_amount_eur`, so non-EUR orders such as `SEK358.50` and `NOK626.00` are not treated as euro. Historical rates live in `backend/exchange_rates.json`; if a currency/date has no rate, the original amount still appears in the table but it is excluded from EUR calculations until a rate is added and `python backend/migrate_money.py` is run.
+
+## Pagination
+
+The extension fetches Wolt orders with `limit=1000`, then follows any cursor field returned by the API until no next cursor is available. If Wolt does not return a cursor, sync stops after the first page.
