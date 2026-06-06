@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import json
 
 import app as trackali
 
@@ -57,6 +58,31 @@ class TrackAliApiTest(unittest.TestCase):
         saved = self.client.get("/orders").get_json()["orders"][0]
         self.assertEqual(saved["user_custom_data"]["rating"], 4)
         self.assertEqual(saved["user_custom_data"]["notes"], "Keep")
+
+    def test_legacy_orders_do_not_block_sync(self):
+        with open(trackali.DB_PATH, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "last_synced": "2026-05-18T20:21:42+00:00",
+                    "orders": [{"purchase_id": "legacy", "venue_name": "Old record"}],
+                },
+                handle,
+            )
+
+        response = self.client.post(
+            "/sync",
+            json={
+                "orders": [{
+                    "order_id": "789",
+                    "seller_name": "Components Store",
+                    "products": [{"name": "Switch"}],
+                }]
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["total_orders"], 1)
+        self.assertEqual(self.client.get("/orders").get_json()["orders"][0]["order_id"], "789")
 
 
 if __name__ == "__main__":

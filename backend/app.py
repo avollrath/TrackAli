@@ -36,7 +36,12 @@ def load_db(demo=False):
         return empty_db()
     if not isinstance(db, dict) or not isinstance(db.get("orders"), list):
         return empty_db()
-    return {"last_synced": db.get("last_synced"), "orders": db["orders"]}
+    orders = [
+        order
+        for order in db["orders"]
+        if isinstance(order, dict) and str(order.get("order_id") or "").strip()
+    ]
+    return {"last_synced": db.get("last_synced") if orders else None, "orders": orders}
 
 
 def save_db(db):
@@ -123,7 +128,7 @@ def sync():
         return error_response("Expected 'orders' array")
 
     db = load_db()
-    existing = {order["order_id"]: order for order in db["orders"]}
+    existing = {order["order_id"]: order for order in db["orders"] if order.get("order_id")}
     added = 0
     updated = 0
 
@@ -202,7 +207,7 @@ def import_db():
         return error_response("Expected 'orders' array")
 
     db = load_db()
-    existing = {order["order_id"]: order for order in db["orders"]}
+    existing = {order["order_id"]: order for order in db["orders"] if order.get("order_id")}
     added = 0
     for raw in incoming:
         if not isinstance(raw, dict):
