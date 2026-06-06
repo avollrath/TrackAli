@@ -67,6 +67,7 @@ function orderYear(order) {
 function parseMoney(value) {
   const text = String(value || "").replaceAll("â‚¬", "€").trim();
   let numeric = text.replace(/[^\d,.-]/g, "");
+  if (!/\d/.test(numeric)) return null;
   const comma = numeric.lastIndexOf(",");
   const dot = numeric.lastIndexOf(".");
   if (comma > dot) {
@@ -83,23 +84,51 @@ function parseMoney(value) {
   return { amount, currency };
 }
 
-function formatTotals(orders) {
+function totalBreakdown(orders) {
   const totals = new Map();
   orders.forEach((order) => {
     const money = parseMoney(order.total);
     if (!money) return;
     totals.set(money.currency, (totals.get(money.currency) || 0) + money.amount);
   });
-  if (!totals.size) return "-";
-  return [...totals.entries()].map(([currency, amount]) => {
-    if (currency) {
-      return new Intl.NumberFormat(undefined, {
+  return [...totals.entries()]
+    .filter(([currency]) => currency)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, amount]) => ({
+      currency,
+      formatted: new Intl.NumberFormat(undefined, {
         style: "currency",
         currency,
-      }).format(amount);
+      }).format(amount),
+    }));
+}
+
+function consolidateOrders(orders) {
+  const grouped = new Map();
+  for (const order of orders) {
+    const orderId = String(order.order_id || "").trim();
+    if (!orderId) continue;
+    const existing = grouped.get(orderId);
+    if (!existing) {
+      grouped.set(orderId, {
+        ...order,
+        products: [...(order.products || [])],
+        user_custom_data: { ...(order.user_custom_data || {}) },
+      });
+      continue;
     }
-    return amount.toFixed(2);
-  }).join(" + ");
+
+    const products = new Map();
+    [...(existing.products || []), ...(order.products || [])].forEach((product) => {
+      const key = [product.product_url, product.name, product.variant, product.price].join("|");
+      const current = products.get(key);
+      products.set(key, current
+        ? { ...current, quantity: Math.max(Number(current.quantity || 1), Number(product.quantity || 1)) }
+        : { ...product });
+    });
+    existing.products = [...products.values()];
+  }
+  return [...grouped.values()];
 }
 
 function statusClass(value) {
@@ -190,7 +219,14 @@ function updateStats(orders) {
 
   document.getElementById("stat-orders").textContent = orders.length;
   document.getElementById("stat-products").textContent = products;
-  document.getElementById("stat-total").textContent = formatTotals(orders);
+  const totals = totalBreakdown(orders);
+  document.getElementById("stat-total").innerHTML = totals.length
+    ? totals.map((total) => `
+        <div class="total-line">
+          <strong>${escapeHtml(total.formatted)}</strong>
+          <small>${escapeHtml(total.currency)}</small>
+        </div>`).join("")
+    : "<strong>-</strong>";
   document.getElementById("stat-rated").textContent = rated;
   document.getElementById("stat-seller").textContent = topSeller;
 }
@@ -262,7 +298,7 @@ async function loadOrders() {
   try {
     const response = await api(`/orders${demoMode ? "?demo=1" : ""}`);
     const data = await response.json();
-    allOrders = data.orders || [];
+    allOrders = consolidateOrders(data.orders || []);
     elements.lastSynced.textContent = data.last_synced
       ? `Synced ${new Date(data.last_synced).toLocaleString()}`
       : "Never synced";

@@ -75,11 +75,22 @@ h1 span { color: var(--red); }
 .hero-copy { max-width: 680px; margin: 20px 0 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
 .hero-button { flex: 0 0 auto; }
 
-.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
+.stats { display: grid; grid-template-columns: 1.5fr repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
 .stats article { min-height: 120px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .stats span { display: block; margin-bottom: 12px; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .stats strong { display: block; font: 800 38px/1.1 Manrope, sans-serif; }
 .stats strong.small { font-size: 20px; line-height: 1.25; }
+.stats .stat-total-card {
+  color: #fff;
+  background: linear-gradient(135deg, #ff6a2a, #e52626);
+  border-color: transparent;
+  box-shadow: 0 16px 38px rgba(229, 38, 38, .24);
+}
+.stats .stat-total-card > span { color: rgba(255, 255, 255, .72); }
+.total-breakdown { display: grid; gap: 7px; }
+.total-line { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.total-line strong { color: #fff; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -1px; }
+.total-line small { color: rgba(255, 255, 255, .72); font-weight: 800; }
 
 .controls {
   display: flex;

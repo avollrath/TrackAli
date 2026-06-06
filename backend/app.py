@@ -36,11 +36,15 @@ def load_db(demo=False):
         return empty_db()
     if not isinstance(db, dict) or not isinstance(db.get("orders"), list):
         return empty_db()
-    orders = [
-        order
-        for order in db["orders"]
-        if isinstance(order, dict) and str(order.get("order_id") or "").strip()
-    ]
+    orders_by_id = {}
+    for order in db["orders"]:
+        if not isinstance(order, dict):
+            continue
+        order_id = str(order.get("order_id") or "").strip()
+        if not order_id:
+            continue
+        orders_by_id[order_id] = merge_order(order, orders_by_id.get(order_id))
+    orders = list(orders_by_id.values())
     return {"last_synced": db.get("last_synced") if orders else None, "orders": orders}
 
 
@@ -113,6 +117,43 @@ def normalize_order(raw, existing=None):
     }
 
 
+def merge_order(raw, existing=None):
+    normalized = normalize_order(raw, existing)
+    if not existing:
+        return normalized
+
+    products = {}
+    for product in [*(existing.get("products") or []), *normalized["products"]]:
+        normalized_product = normalize_product(product)
+        key = (
+            normalized_product["product_url"],
+            normalized_product["name"],
+            normalized_product["variant"],
+            normalized_product["price"],
+        )
+        if key in products:
+            products[key]["quantity"] = max(
+                products[key]["quantity"],
+                normalized_product["quantity"],
+            )
+        else:
+            products[key] = normalized_product
+
+    for field in (
+        "order_date",
+        "status",
+        "seller_name",
+        "seller_url",
+        "order_url",
+        "message_url",
+        "total",
+    ):
+        if not normalized[field]:
+            normalized[field] = existing.get(field) or ""
+    normalized["products"] = list(products.values())
+    return normalized
+
+
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
@@ -139,10 +180,10 @@ def sync():
         if not order_id:
             continue
         if order_id in existing:
-            existing[order_id] = normalize_order(raw, existing[order_id])
+            existing[order_id] = merge_order(raw, existing[order_id])
             updated += 1
         else:
-            existing[order_id] = normalize_order(raw)
+            existing[order_id] = merge_order(raw)
             added += 1
 
     db["orders"] = sorted(
@@ -217,7 +258,7 @@ def import_db():
             continue
         if order_id not in existing:
             added += 1
-        existing[order_id] = normalize_order(raw, existing.get(order_id))
+        existing[order_id] = merge_order(raw, existing.get(order_id))
 
     db["orders"] = sorted(
         existing.values(),

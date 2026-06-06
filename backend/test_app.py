@@ -84,6 +84,48 @@ class TrackAliApiTest(unittest.TestCase):
         self.assertEqual(response.get_json()["total_orders"], 1)
         self.assertEqual(self.client.get("/orders").get_json()["orders"][0]["order_id"], "789")
 
+    def test_repeated_order_id_merges_products(self):
+        response = self.client.post(
+            "/sync",
+            json={
+                "orders": [
+                    {
+                        "order_id": "999",
+                        "seller_name": "Parts Store",
+                        "products": [{"name": "Switch", "product_url": "https://example.com/1"}],
+                    },
+                    {
+                        "order_id": "999",
+                        "seller_name": "Parts Store",
+                        "products": [{"name": "LED", "product_url": "https://example.com/2"}],
+                    },
+                ]
+            },
+        )
+        saved = self.client.get("/orders").get_json()["orders"]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["total_orders"], 1)
+        self.assertEqual([product["name"] for product in saved[0]["products"]], ["Switch", "LED"])
+
+    def test_duplicate_ids_in_database_are_read_as_one_order(self):
+        with open(trackali.DB_PATH, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "last_synced": None,
+                    "orders": [
+                        {"order_id": "111", "products": [{"name": "A"}]},
+                        {"order_id": "111", "products": [{"name": "B"}]},
+                    ],
+                },
+                handle,
+            )
+
+        response = self.client.get("/orders").get_json()
+
+        self.assertEqual(len(response["orders"]), 1)
+        self.assertEqual([item["name"] for item in response["orders"][0]["products"]], ["A", "B"])
+
 
 if __name__ == "__main__":
     unittest.main()
