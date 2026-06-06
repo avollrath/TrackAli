@@ -44,6 +44,7 @@
     <section class="stats" aria-label="Order statistics">
       <article><span>Orders</span><strong id="stat-orders">-</strong></article>
       <article><span>Products</span><strong id="stat-products">-</strong></article>
+      <article><span>Total spent</span><strong class="small" id="stat-total">-</strong></article>
       <article><span>Rated</span><strong id="stat-rated">-</strong></article>
       <article><span>Top seller</span><strong class="small" id="stat-seller">-</strong></article>
     </section>
@@ -55,6 +56,9 @@
       </label>
       <select id="status-filter" aria-label="Filter by status">
         <option value="all">All statuses</option>
+      </select>
+      <select id="year-filter" aria-label="Filter by year">
+        <option value="all">All years</option>
       </select>
       <select id="sort-select" aria-label="Sort orders">
         <option value="newest">Newest first</option>

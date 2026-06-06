@@ -7,6 +7,7 @@ const elements = {
   empty: document.getElementById("empty"),
   search: document.getElementById("search-input"),
   status: document.getElementById("status-filter"),
+  year: document.getElementById("year-filter"),
   sort: document.getElementById("sort-select"),
   unrated: document.getElementById("unrated-only"),
   lastSynced: document.getElementById("last-synced"),
@@ -56,6 +57,49 @@ function safeUrl(value) {
 function parseOrderDate(value) {
   const timestamp = Date.parse(value || "");
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function orderYear(order) {
+  const timestamp = parseOrderDate(order.order_date);
+  return timestamp ? String(new Date(timestamp).getFullYear()) : "";
+}
+
+function parseMoney(value) {
+  const text = String(value || "").replaceAll("â‚¬", "€").trim();
+  let numeric = text.replace(/[^\d,.-]/g, "");
+  const comma = numeric.lastIndexOf(",");
+  const dot = numeric.lastIndexOf(".");
+  if (comma > dot) {
+    numeric = numeric.replace(/\./g, "").replace(",", ".");
+  } else {
+    numeric = numeric.replace(/,/g, "");
+  }
+  const amount = Number(numeric);
+  if (!Number.isFinite(amount)) return null;
+  let currency = "";
+  if (text.includes("€") || /\bEUR\b/i.test(text)) currency = "EUR";
+  else if (text.includes("£") || /\bGBP\b/i.test(text)) currency = "GBP";
+  else if (text.includes("$") || /\bUSD\b|US\s*\$/i.test(text)) currency = "USD";
+  return { amount, currency };
+}
+
+function formatTotals(orders) {
+  const totals = new Map();
+  orders.forEach((order) => {
+    const money = parseMoney(order.total);
+    if (!money) return;
+    totals.set(money.currency, (totals.get(money.currency) || 0) + money.amount);
+  });
+  if (!totals.size) return "-";
+  return [...totals.entries()].map(([currency, amount]) => {
+    if (currency) {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+      }).format(amount);
+    }
+    return amount.toFixed(2);
+  }).join(" + ");
 }
 
 function statusClass(value) {
@@ -119,8 +163,10 @@ function orderHtml(order) {
 function filteredOrders() {
   const query = elements.search.value.trim().toLowerCase();
   const status = elements.status.value;
+  const year = elements.year.value;
   let orders = allOrders.filter((order) => {
     if (status !== "all" && order.status !== status) return false;
+    if (year !== "all" && orderYear(order) !== year) return false;
     if (elements.unrated.checked && Number(order.user_custom_data?.rating || 0) > 0) return false;
     const productText = (order.products || []).map((product) => `${product.name} ${product.variant}`).join(" ");
     return !query || `${order.order_id} ${order.seller_name} ${order.status} ${productText}`.toLowerCase().includes(query);
@@ -134,22 +180,24 @@ function filteredOrders() {
   });
 }
 
-function updateStats() {
-  const products = allOrders.reduce((count, order) =>
+function updateStats(orders) {
+  const products = orders.reduce((count, order) =>
     count + (order.products || []).reduce((sum, product) => sum + Number(product.quantity || 1), 0), 0);
-  const rated = allOrders.filter((order) => Number(order.user_custom_data?.rating || 0) > 0).length;
+  const rated = orders.filter((order) => Number(order.user_custom_data?.rating || 0) > 0).length;
   const sellers = new Map();
-  allOrders.forEach((order) => sellers.set(order.seller_name, (sellers.get(order.seller_name) || 0) + 1));
+  orders.forEach((order) => sellers.set(order.seller_name, (sellers.get(order.seller_name) || 0) + 1));
   const topSeller = [...sellers.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
 
-  document.getElementById("stat-orders").textContent = allOrders.length;
+  document.getElementById("stat-orders").textContent = orders.length;
   document.getElementById("stat-products").textContent = products;
+  document.getElementById("stat-total").textContent = formatTotals(orders);
   document.getElementById("stat-rated").textContent = rated;
   document.getElementById("stat-seller").textContent = topSeller;
 }
 
 function render() {
   const orders = filteredOrders();
+  updateStats(orders);
   elements.orders.innerHTML = orders.map(orderHtml).join("");
   elements.orders.classList.toggle("hidden", !orders.length);
   elements.empty.classList.toggle("hidden", allOrders.length > 0);
@@ -170,6 +218,14 @@ function populateStatuses() {
   elements.status.innerHTML = '<option value="all">All statuses</option>' +
     statuses.map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join("");
   if (statuses.includes(selected)) elements.status.value = selected;
+}
+
+function populateYears() {
+  const selected = elements.year.value;
+  const years = [...new Set(allOrders.map(orderYear).filter(Boolean))].sort((a, b) => b - a);
+  elements.year.innerHTML = '<option value="all">All years</option>' +
+    years.map((year) => `<option value="${year}">${year}</option>`).join("");
+  if (years.includes(selected)) elements.year.value = selected;
 }
 
 async function saveCustom(order, fields) {
@@ -211,7 +267,7 @@ async function loadOrders() {
       ? `Synced ${new Date(data.last_synced).toLocaleString()}`
       : "Never synced";
     populateStatuses();
-    updateStats();
+    populateYears();
     render();
   } catch {
     elements.error.classList.remove("hidden");
@@ -220,7 +276,7 @@ async function loadOrders() {
   }
 }
 
-[elements.search, elements.status, elements.sort, elements.unrated].forEach((element) => {
+[elements.search, elements.status, elements.year, elements.sort, elements.unrated].forEach((element) => {
   element.addEventListener(element === elements.search ? "input" : "change", render);
 });
 

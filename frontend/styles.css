@@ -75,7 +75,7 @@ h1 span { color: var(--red); }
 .hero-copy { max-width: 680px; margin: 20px 0 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
 .hero-button { flex: 0 0 auto; }
 
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
 .stats article { min-height: 120px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .stats span { display: block; margin-bottom: 12px; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .stats strong { display: block; font: 800 38px/1.1 Manrope, sans-serif; }
