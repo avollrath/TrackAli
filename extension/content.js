@@ -17,10 +17,16 @@ function cleanText(value) {
     .trim();
 }
 
+function checkoutId(fields) {
+  const paymentOutId = String(fields.paymentOutId || "");
+  return paymentOutId.length > 8 ? paymentOutId.slice(0, -8) : String(fields.orderId);
+}
+
 function orderFromFields(fields) {
   if (!fields?.orderId) return null;
   return {
     order_id: String(fields.orderId),
+    checkout_id: checkoutId(fields),
     order_date: cleanText(fields.orderDateText),
     status: cleanText(fields.statusText) || "Unknown",
     seller_name: cleanText(fields.storeName) || "Unknown seller",
@@ -102,6 +108,7 @@ function parseDomOrders() {
 
     capturedOrders.set(orderId, {
       order_id: orderId,
+      checkout_id: existing.checkout_id || orderId,
       order_date: existing.order_date || cleanText(date),
       status: existing.status || cleanText(status),
       seller_name: existing.seller_name || textOf(storeLink) || "Unknown seller",

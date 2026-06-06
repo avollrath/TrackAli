@@ -126,6 +126,24 @@ class TrackAliApiTest(unittest.TestCase):
         self.assertEqual(len(response["orders"]), 1)
         self.assertEqual([item["name"] for item in response["orders"][0]["products"]], ["A", "B"])
 
+    def test_checkout_id_is_preserved(self):
+        response = self.client.post(
+            "/sync",
+            json={
+                "orders": [{
+                    "order_id": "222",
+                    "checkout_id": "checkout-1",
+                    "products": [{"name": "Relay"}],
+                }]
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.get("/orders").get_json()["orders"][0]["checkout_id"],
+            "checkout-1",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

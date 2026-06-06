@@ -95,12 +95,16 @@ def normalize_order(raw, existing=None):
     order_id = str(raw.get("order_id") or "").strip()
     products = raw.get("products") if isinstance(raw.get("products"), list) else []
     custom = (existing or raw).get("user_custom_data") or {}
+    checkout_id = str(
+        raw.get("checkout_id") or (existing or {}).get("checkout_id") or order_id
+    ).strip()
     try:
         rating = min(5, max(0, int(custom.get("rating") or 0)))
     except (TypeError, ValueError):
         rating = 0
     return {
         "order_id": order_id,
+        "checkout_id": checkout_id,
         "order_date": str(raw.get("order_date") or "").strip(),
         "status": str(raw.get("status") or "Unknown").strip(),
         "seller_name": str(raw.get("seller_name") or "Unknown seller").strip(),
@@ -147,6 +151,7 @@ def merge_order(raw, existing=None):
         "order_url",
         "message_url",
         "total",
+        "checkout_id",
     ):
         if not normalized[field]:
             normalized[field] = existing.get(field) or ""

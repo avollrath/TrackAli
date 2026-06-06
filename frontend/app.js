@@ -108,18 +108,31 @@ function consolidateOrders(orders) {
   for (const order of orders) {
     const orderId = String(order.order_id || "").trim();
     if (!orderId) continue;
-    const existing = grouped.get(orderId);
+    const groupId = String(order.checkout_id || orderId).trim();
+    const existing = grouped.get(groupId);
     if (!existing) {
-      grouped.set(orderId, {
+      grouped.set(groupId, {
         ...order,
-        products: [...(order.products || [])],
+        order_ids: [orderId],
+        seller_names: [order.seller_name].filter(Boolean),
+        products: (order.products || []).map((product) => ({
+          ...product,
+          seller_name: order.seller_name,
+        })),
         user_custom_data: { ...(order.user_custom_data || {}) },
       });
       continue;
     }
 
+    if (!existing.order_ids.includes(orderId)) existing.order_ids.push(orderId);
+    if (order.seller_name && !existing.seller_names.includes(order.seller_name)) {
+      existing.seller_names.push(order.seller_name);
+    }
     const products = new Map();
-    [...(existing.products || []), ...(order.products || [])].forEach((product) => {
+    [
+      ...(existing.products || []),
+      ...(order.products || []).map((product) => ({ ...product, seller_name: order.seller_name })),
+    ].forEach((product) => {
       const key = [product.product_url, product.name, product.variant, product.price].join("|");
       const current = products.get(key);
       products.set(key, current
@@ -127,6 +140,15 @@ function consolidateOrders(orders) {
         : { ...product });
     });
     existing.products = [...products.values()];
+    const existingMoney = parseMoney(existing.total);
+    const orderMoney = parseMoney(order.total);
+    if (existingMoney && orderMoney && existingMoney.currency === orderMoney.currency) {
+      existing.total = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: existingMoney.currency,
+      }).format(existingMoney.amount + orderMoney.amount);
+    }
+    if (existing.status !== order.status) existing.status = "Mixed status";
   }
   return [...grouped.values()];
 }
@@ -154,6 +176,7 @@ function productHtml(product) {
     <div class="product-copy">
       <strong>${escapeHtml(product.name)}</strong>
       ${product.variant ? `<small>${escapeHtml(product.variant)}</small>` : ""}
+      ${product.seller_name ? `<small>${escapeHtml(product.seller_name)}</small>` : ""}
       <span>${product.quantity > 1 ? `Qty ${product.quantity} · ` : ""}${escapeHtml(product.price || "")}</span>
     </div>`;
   return productUrl
@@ -164,15 +187,17 @@ function productHtml(product) {
 function orderHtml(order) {
   const orderUrl = safeUrl(order.order_url);
   const sellerUrl = safeUrl(order.seller_url);
+  const sellers = order.seller_names || [order.seller_name];
+  const sellerLabel = sellers.length > 1 ? `${sellers.length} sellers` : sellers[0];
   const custom = order.user_custom_data || {};
   return `
     <article class="order-card" data-order-id="${escapeHtml(order.order_id)}">
       <div class="order-head">
         <div>
           <div class="order-date">${escapeHtml(order.order_date || "Date unavailable")}</div>
-          ${sellerUrl
-            ? `<a class="seller" href="${escapeHtml(sellerUrl)}" target="_blank" rel="noopener">${escapeHtml(order.seller_name)}</a>`
-            : `<span class="seller">${escapeHtml(order.seller_name)}</span>`}
+          ${sellerUrl && sellers.length === 1
+            ? `<a class="seller" href="${escapeHtml(sellerUrl)}" target="_blank" rel="noopener">${escapeHtml(sellerLabel)}</a>`
+            : `<span class="seller">${escapeHtml(sellerLabel)}</span>`}
         </div>
         <div class="order-meta">
           <span class="status ${statusClass(order.status)}">${escapeHtml(order.status)}</span>
@@ -185,7 +210,7 @@ function orderHtml(order) {
         <textarea class="notes" rows="1" placeholder="Add a private note...">${escapeHtml(custom.notes || "")}</textarea>
         ${orderUrl ? `<a class="detail-link" href="${escapeHtml(orderUrl)}" target="_blank" rel="noopener">Order details ↗</a>` : ""}
       </div>
-      <div class="order-id">Order ${escapeHtml(order.order_id)}</div>
+      <div class="order-id">Order ${escapeHtml((order.order_ids || [order.order_id]).join(", "))}</div>
     </article>`;
 }
 
@@ -198,7 +223,8 @@ function filteredOrders() {
     if (year !== "all" && orderYear(order) !== year) return false;
     if (elements.unrated.checked && Number(order.user_custom_data?.rating || 0) > 0) return false;
     const productText = (order.products || []).map((product) => `${product.name} ${product.variant}`).join(" ");
-    return !query || `${order.order_id} ${order.seller_name} ${order.status} ${productText}`.toLowerCase().includes(query);
+    const sellerText = (order.seller_names || [order.seller_name]).join(" ");
+    return !query || `${order.order_id} ${sellerText} ${order.status} ${productText}`.toLowerCase().includes(query);
   });
 
   return orders.sort((a, b) => {
@@ -214,7 +240,11 @@ function updateStats(orders) {
     count + (order.products || []).reduce((sum, product) => sum + Number(product.quantity || 1), 0), 0);
   const rated = orders.filter((order) => Number(order.user_custom_data?.rating || 0) > 0).length;
   const sellers = new Map();
-  orders.forEach((order) => sellers.set(order.seller_name, (sellers.get(order.seller_name) || 0) + 1));
+  orders.forEach((order) => {
+    (order.seller_names || [order.seller_name]).filter(Boolean).forEach((seller) => {
+      sellers.set(seller, (sellers.get(seller) || 0) + 1);
+    });
+  });
   const topSeller = [...sellers.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
 
   document.getElementById("stat-orders").textContent = orders.length;
