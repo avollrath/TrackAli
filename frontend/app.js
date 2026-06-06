@@ -222,10 +222,16 @@ function stars(order) {
 }
 
 function productHtml(product) {
-  const image = safeUrl(product.image_url);
+  const localImage = safeUrl(product.local_image_url
+    ? `${API_BASE}${product.local_image_url}`
+    : "");
+  const remoteImage = safeUrl(product.image_url);
+  const image = localImage || remoteImage;
   const productUrl = safeUrl(product.product_url);
   const content = `
-    <div class="product-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" />` : "<span>TA</span>"}</div>
+    <div class="product-image">${image
+      ? `<img src="${escapeHtml(image)}" ${localImage && remoteImage ? `data-fallback="${escapeHtml(remoteImage)}"` : ""} alt="" loading="lazy" />`
+      : "<span>TA</span>"}</div>
     <div class="product-copy">
       <strong>${escapeHtml(product.name)}</strong>
       ${product.variant ? `<small>${escapeHtml(product.variant)}</small>` : ""}
@@ -339,6 +345,12 @@ function render() {
       button.addEventListener("click", () => saveCustom(order, { rating: Number(button.dataset.rating) }));
     });
     card.querySelector(".notes").addEventListener("change", (event) => saveCustom(order, { notes: event.target.value }));
+  });
+  elements.orders.querySelectorAll("img[data-fallback]").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.src = image.dataset.fallback;
+      image.removeAttribute("data-fallback");
+    }, { once: true });
   });
 }
 

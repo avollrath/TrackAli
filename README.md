@@ -9,6 +9,7 @@ Local AliExpress order tracker with a Chrome extension, Flask backend, and respo
 - Captures structured order-list API responses and falls back to rendered page data.
 - Stores order status, seller, products, variants, quantities, prices, images, and links.
 - Preserves private ratings and notes when order data is refreshed.
+- Archives product images under `backend/product_images` so listings remain visible if remote images disappear.
 - Supports search, status filters, sorting, demo data, JSON import, and JSON export.
 
 ## Run
@@ -35,6 +36,7 @@ AliExpress request signatures are short-lived and session-bound. TrackAli captur
 ## Data
 
 Personal order data is stored in `backend/orders_db.json` and excluded from Git. Export the database from the dashboard for backups.
+Archived product images are stored in `backend/product_images` and are also excluded from Git.
 
 ## Test
 

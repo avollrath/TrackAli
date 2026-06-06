@@ -9,6 +9,7 @@ env/
 # Database (contains your personal order data)
 backend/orders_db.json
 backend/orders_db.*-backup*.json
+backend/product_images/
 
 # macOS
 .DS_Store

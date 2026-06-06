@@ -10,12 +10,15 @@ class TrackAliApiTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_db_path = trackali.DB_PATH
+        self.original_image_dir = trackali.IMAGE_DIR
         trackali.DB_PATH = os.path.join(self.temp_dir.name, "orders.json")
+        trackali.IMAGE_DIR = os.path.join(self.temp_dir.name, "images")
         trackali.app.config["TESTING"] = True
         self.client = trackali.app.test_client()
 
     def tearDown(self):
         trackali.DB_PATH = self.original_db_path
+        trackali.IMAGE_DIR = self.original_image_dir
         self.temp_dir.cleanup()
 
     def test_sync_preserves_rating_and_notes(self):
@@ -143,6 +146,19 @@ class TrackAliApiTest(unittest.TestCase):
             self.client.get("/orders").get_json()["orders"][0]["checkout_id"],
             "checkout-1",
         )
+
+    def test_local_image_url_only_uses_archived_aliexpress_images(self):
+        image_url = "https://ae01.alicdn.com/kf/example.jpg"
+        filename = trackali.image_filename(image_url)
+        os.makedirs(trackali.IMAGE_DIR)
+        with open(os.path.join(trackali.IMAGE_DIR, filename), "wb") as handle:
+            handle.write(b"image")
+
+        self.assertEqual(
+            trackali.local_image_url(image_url),
+            f"/product-images/{filename}",
+        )
+        self.assertIsNone(trackali.image_filename("https://example.com/image.jpg"))
 
 
 if __name__ == "__main__":
