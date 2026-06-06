@@ -11,6 +11,7 @@ const elements = {
   sort: document.getElementById("sort-select"),
   unrated: document.getElementById("unrated-only"),
   groupByDay: document.getElementById("group-by-day"),
+  groupBySeller: document.getElementById("group-by-seller"),
   lastSynced: document.getElementById("last-synced"),
   orderCount: document.getElementById("order-count"),
   importButton: document.getElementById("import-button"),
@@ -156,6 +157,37 @@ function groupOrdersByDay(orders) {
   return [...days.values()];
 }
 
+function groupOrdersBySeller(orders) {
+  const sellers = new Map();
+  orders.forEach((order) => {
+    const orderSellers = (order.seller_names || [order.seller_name]).filter(Boolean);
+    const seller = orderSellers.length === 1 ? orderSellers[0] : "Multiple sellers";
+    const existing = sellers.get(seller);
+    if (!existing) {
+      sellers.set(seller, {
+        ...order,
+        _sellerGroup: true,
+        _groupedOrders: [order],
+        order_id: `seller-${seller}`,
+        order_ids: [...(order.order_ids || [order.order_id])],
+        seller_name: seller,
+        seller_names: [seller],
+        products: [...(order.products || [])],
+      });
+      return;
+    }
+
+    existing._groupedOrders.push(order);
+    existing.order_ids.push(...(order.order_ids || [order.order_id]));
+    existing.products.push(...(order.products || []));
+    if (parseOrderDate(order.order_date) > parseOrderDate(existing.order_date)) {
+      existing.order_date = order.order_date;
+    }
+    if (existing.status !== order.status) existing.status = "Mixed status";
+  });
+  return [...sellers.values()];
+}
+
 function consolidateOrders(orders) {
   const grouped = new Map();
   for (const order of orders) {
@@ -264,8 +296,8 @@ function orderHtml(order) {
         </div>
       </div>
       <div class="products">${(order.products || []).map(productHtml).join("") || '<p class="missing">Product details unavailable.</p>'}</div>
-      ${order._dayGroup
-        ? '<div class="order-foot grouped-note">Ratings and notes are available when “Group by day” is off.</div>'
+      ${order._dayGroup || order._sellerGroup
+        ? '<div class="order-foot grouped-note">Ratings and notes are available when grouping is off.</div>'
         : `<div class="order-foot">
             <div class="rating" aria-label="Purchase rating">${stars(order)}</div>
             <textarea class="notes" rows="1" placeholder="Add a private note...">${escapeHtml(custom.notes || "")}</textarea>
@@ -289,6 +321,7 @@ function filteredOrders() {
   });
 
   if (elements.groupByDay.checked) orders = groupOrdersByDay(orders);
+  else if (elements.groupBySeller.checked) orders = groupOrdersBySeller(orders);
 
   return orders.sort((a, b) => {
     if (elements.sort.value === "oldest") return parseOrderDate(a.order_date) - parseOrderDate(b.order_date);
@@ -334,8 +367,15 @@ function render() {
   elements.orders.innerHTML = orders.map(orderHtml).join("");
   elements.orders.classList.toggle("hidden", !orders.length);
   elements.empty.classList.toggle("hidden", allOrders.length > 0);
-  const totalCount = elements.groupByDay.checked ? groupOrdersByDay(allOrders).length : allOrders.length;
-  const unit = elements.groupByDay.checked ? "days" : "orders";
+  let totalCount = allOrders.length;
+  let unit = "orders";
+  if (elements.groupByDay.checked) {
+    totalCount = groupOrdersByDay(allOrders).length;
+    unit = "days";
+  } else if (elements.groupBySeller.checked) {
+    totalCount = groupOrdersBySeller(allOrders).length;
+    unit = "sellers";
+  }
   elements.orderCount.textContent = `${orders.length} of ${totalCount} ${unit}`;
 
   elements.orders.querySelectorAll(".order-card").forEach((card) => {
@@ -418,8 +458,18 @@ async function loadOrders() {
   }
 }
 
-[elements.search, elements.status, elements.year, elements.sort, elements.unrated, elements.groupByDay].forEach((element) => {
+[elements.search, elements.status, elements.year, elements.sort, elements.unrated].forEach((element) => {
   element.addEventListener(element === elements.search ? "input" : "change", render);
+});
+
+elements.groupByDay.addEventListener("change", () => {
+  if (elements.groupByDay.checked) elements.groupBySeller.checked = false;
+  render();
+});
+
+elements.groupBySeller.addEventListener("change", () => {
+  if (elements.groupBySeller.checked) elements.groupByDay.checked = false;
+  render();
 });
 
 elements.demoButton.addEventListener("click", () => {
