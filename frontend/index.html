@@ -3,201 +3,82 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wolt Ratings</title>
+  <title>TrackAli</title>
+  <meta name="description" content="Private AliExpress order tracker and rating library." />
   <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Coda:wght@400;800&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="fonts.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-
-  <!-- ── Header ──────────────────────────────────────────────── -->
-  <header class="header">
-    <div class="header-inner">
-      <a class="wordmark" href="#">
-        <h1><span style="color:var(--cyan)">Wolt</span> Ratings</h1>
-      </a>
-      <div class="header-meta">
-        <span id="last-synced-label">Loading…</span>
-        <span id="order-count"></span>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-demo" id="demo-btn" title="Toggle demo mode">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          Demo
-        </button>
-        <button class="btn btn-secondary" id="import-btn" title="Import orders_db.json">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 17 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Import
-        </button>
-        <input type="file" id="import-file" accept=".json" class="hidden-input" />
-        <button class="btn btn-secondary" id="export-btn" title="Download orders_db.json">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export
-        </button>
-      </div>
+  <header class="site-header">
+    <a class="brand" href="/">
+      <img src="/assets/logo.svg" alt="" />
+      <span>TrackAli</span>
+    </a>
+    <div class="sync-meta">
+      <span id="last-synced">Loading orders...</span>
+      <span id="order-count"></span>
+    </div>
+    <div class="header-actions">
+      <button class="button secondary" id="demo-button">Demo</button>
+      <button class="button secondary" id="import-button">Import</button>
+      <input id="import-file" type="file" accept=".json" hidden />
+      <button class="button primary" id="export-button">Export</button>
     </div>
   </header>
 
-  <!-- ── Stats bar ───────────────────────────────────────────── -->
-  <div class="stats-bar" id="stats-bar">
-    <div class="stat-card">
-      <div class="stat-label"><span class="stat-emoji">🧾</span> Orders shown</div>
-      <div class="stat-value voltymore" id="stat-count">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label"><span class="stat-emoji">💸</span> Total spent</div>
-      <div class="stat-value voltymore" id="stat-spent">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label"><span class="stat-emoji">💰</span> Avg order value</div>
-      <div class="stat-value voltymore" id="stat-avg-value">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label"><span class="stat-emoji">⭐</span> Avg rating</div>
-      <div class="stat-value voltymore cyan stat-rating-inline" id="stat-avg-rating"><span id="stat-avg-rating-text">—</span><svg id="stat-avg-rating-star" class="stat-rating-star-hidden" width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M16.926 20.2a1 1 0 0 1-.466-.115l-4.471-2.352-4.471 2.348a1 1 0 0 1-1.451-1.054l.854-4.98L3.3 10.521a1 1 0 0 1 .555-1.706l5-.727 2.237-4.531A1 1 0 0 1 11.989 3a1 1 0 0 1 .9.558l2.236 4.53 5 .727a1 1 0 0 1 .555 1.706l-3.618 3.527.854 4.98a1 1 0 0 1-.99 1.172z"/></svg></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label"><span class="stat-emoji">🏆</span> Top venue</div>
-      <div class="stat-value voltymore small" id="stat-top-venue">—</div>
-      <div class="stat-sub" id="stat-top-venue-sub"></div>
-    </div>
-    <div class="stat-card clickable" id="stat-unrated-card" title="Click to show unrated orders">
-      <div class="stat-label"><span class="stat-emoji">🔖</span> Unrated</div>
-      <div class="stat-value voltymore" id="stat-unrated">—</div>
-    </div>
-  </div>
-
-  <!-- ── Main ────────────────────────────────────────────────── -->
-  <main class="main">
-    <div class="table-card" id="table-card">
-
-      <!-- Skeleton loading -->
-      <div id="loading-state">
-        <table>
-          <thead>
-            <tr>
-              <th class="col-date">Date</th>
-              <th class="col-venue">Venue</th>
-              <th class="col-items">Items</th>
-              <th class="col-total">Total</th>
-              <th class="col-rating">Rating</th>
-              <th class="col-notes">Notes</th>
-            </tr>
-          </thead>
-          <tbody id="skeleton-tbody"></tbody>
-        </table>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Personal order archive</p>
+        <h1>Everything you bought,<br /><span>finally easy to find.</span></h1>
+        <p class="hero-copy">Search products, track delivery states, rate purchases, and keep notes without digging through AliExpress history.</p>
       </div>
+      <a class="button primary hero-button" href="https://www.aliexpress.com/p/order/index.html" target="_blank" rel="noopener">
+        Open AliExpress orders
+      </a>
+    </section>
 
-      <!-- Error state -->
-      <div class="error-state" id="error-state">
-        <div class="error-icon">⚠️</div>
-        <h2>Can't reach the backend</h2>
-        <p>Start the server with <code>python backend/app.py</code> then refresh this page.</p>
-      </div>
+    <section class="stats" aria-label="Order statistics">
+      <article><span>Orders</span><strong id="stat-orders">-</strong></article>
+      <article><span>Products</span><strong id="stat-products">-</strong></article>
+      <article><span>Rated</span><strong id="stat-rated">-</strong></article>
+      <article><span>Top seller</span><strong class="small" id="stat-seller">-</strong></article>
+    </section>
 
-      <!-- Empty state -->
-      <div class="empty-state" id="empty-state">
-        <div class="empty-icon">🍣</div>
-        <h2>No orders yet</h2>
-        <p>Install the browser extension, open wolt.com, and click <strong>Sync Now</strong> to import your order history.</p>
-      </div>
+    <section class="controls">
+      <label class="search">
+        <span aria-hidden="true">⌕</span>
+        <input id="search-input" type="search" placeholder="Search products, sellers, order IDs..." />
+      </label>
+      <select id="status-filter" aria-label="Filter by status">
+        <option value="all">All statuses</option>
+      </select>
+      <select id="sort-select" aria-label="Sort orders">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="rating">Highest rated</option>
+        <option value="seller">Seller A-Z</option>
+      </select>
+      <label class="check"><input id="unrated-only" type="checkbox" /> Unrated only</label>
+    </section>
 
-      <!-- Orders table -->
-      <div id="table-container" class="hidden">
-        <div class="toolbar-inner">
-          <div class="search-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input id="search-input" type="text" class="search-input" placeholder="Search venue or item…" />
-          </div>
-          <select id="sort-select" class="sort-select">
-            <option value="date_desc">Newest first</option>
-            <option value="date_asc">Oldest first</option>
-            <option value="rating_desc">Highest rated</option>
-            <option value="value_desc">Highest EUR value</option>
-            <option value="venue_asc">Venue A–Z</option>
-          </select>
-          <select id="year-select" class="sort-select">
-            <option value="all">All years</option>
-          </select>
-          <div class="toolbar-filters">
-            <label class="filter-chip" id="chip-only-rated">
-              <input type="checkbox" id="only-rated" />
-              Rated only
-            </label>
-            <label class="filter-chip" id="chip-per-venue">
-              <input type="checkbox" id="per-venue" />
-              Per venue
-            </label>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th class="col-date">Date</th>
-              <th class="col-venue">Venue</th>
-              <th class="col-items">Items</th>
-              <th class="col-total text-right">Total</th>
-              <th class="col-rating">Rating</th>
-              <th class="col-notes">Notes</th>
-            </tr>
-          </thead>
-          <tbody id="orders-tbody"></tbody>
-        </table>
-      </div>
-
-    </div>
-    <div id="scroll-sentinel"></div>
+    <section id="loading" class="state">Loading your order library...</section>
+    <section id="error" class="state hidden">
+      <h2>Backend unavailable</h2>
+      <p>Run <code>start.bat</code>, then reload this page.</p>
+    </section>
+    <section id="empty" class="state hidden">
+      <h2>No orders imported</h2>
+      <p>Load the unpacked extension, open AliExpress My Orders, and choose “Import all orders.”</p>
+    </section>
+    <section id="orders" class="order-list hidden" aria-live="polite"></section>
   </main>
 
-  <!-- ── Restaurant detail modal ─────────────────────────────── -->
-  <div class="modal-backdrop" id="modal-backdrop">
-    <div class="modal" id="venue-modal">
-      <div class="modal-header">
-        <div class="modal-title-block">
-          <h2 id="modal-venue-name">Restaurant</h2>
-          <p id="modal-venue-sub"></p>
-        </div>
-        <button class="modal-close" id="modal-close">✕</button>
-      </div>
-      <div class="modal-stats">
-        <div class="modal-stat">
-          <div class="modal-stat-value voltymore" id="modal-stat-orders">—</div>
-          <div class="modal-stat-label">Orders</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-value voltymore" id="modal-stat-spent">—</div>
-          <div class="modal-stat-label">Total spent (EUR)</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-value voltymore modal-rating-inline" id="modal-stat-rating"><span id="modal-stat-rating-text">—</span><svg id="modal-stat-rating-star" class="stat-rating-star-hidden" width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M16.926 20.2a1 1 0 0 1-.466-.115l-4.471-2.352-4.471 2.348a1 1 0 0 1-1.451-1.054l.854-4.98L3.3 10.521a1 1 0 0 1 .555-1.706l5-.727 2.237-4.531A1 1 0 0 1 11.989 3a1 1 0 0 1 .9.558l2.236 4.53 5 .727a1 1 0 0 1 .555 1.706l-3.618 3.527.854 4.98a1 1 0 0 1-.99 1.172z"/></svg></div>
-          <div class="modal-stat-label">Avg rating</div>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="modal-section-title">Most ordered items</div>
-        <div id="modal-items-list"></div>
-        <div class="modal-section-title">Order history</div>
-        <div id="modal-orders-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Toast container ─────────────────────────────────────── -->
-  <div id="toast-container"></div>
-
-  <!-- ── Footer ──────────────────────────────────────────────── -->
-  <footer class="site-footer">
-    <p>Made by André Vollrath &nbsp;·&nbsp; <a href="https://www.vollrath.dev" target="_blank" rel="noopener">vollrath.dev</a></p>
-    <p class="footer-disclaimer">Not affiliated with Wolt. For private use only.</p>
-  </footer>
-
-  <script src="app.js"></script>
+  <div id="toast" class="toast" role="status"></div>
+  <footer>Private local app. Not affiliated with AliExpress.</footer>
+  <script src="/app.js"></script>
 </body>
 </html>
