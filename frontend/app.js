@@ -10,6 +10,7 @@ const elements = {
   year: document.getElementById("year-filter"),
   sort: document.getElementById("sort-select"),
   unrated: document.getElementById("unrated-only"),
+  groupByDay: document.getElementById("group-by-day"),
   lastSynced: document.getElementById("last-synced"),
   orderCount: document.getElementById("order-count"),
   importButton: document.getElementById("import-button"),
@@ -101,6 +102,58 @@ function totalBreakdown(orders) {
         currency,
       }).format(amount),
     }));
+}
+
+function totalHtml(orders) {
+  const totals = totalBreakdown(orders);
+  if (!totals.length) return "<strong>-</strong>";
+  return totals.map((total) => `
+    <span class="order-total-line">${escapeHtml(total.formatted)}</span>
+  `).join("");
+}
+
+function priceSortValue(order) {
+  const totals = order._groupedOrders ? totalBreakdown(order._groupedOrders) : totalBreakdown([order]);
+  return Math.max(0, ...totals.map((total) => {
+    const money = parseMoney(total.formatted);
+    return money?.amount || 0;
+  }));
+}
+
+function dayKey(order) {
+  const timestamp = parseOrderDate(order.order_date);
+  if (!timestamp) return `unknown-${order.order_id}`;
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function groupOrdersByDay(orders) {
+  const days = new Map();
+  orders.forEach((order) => {
+    const key = dayKey(order);
+    const existing = days.get(key);
+    if (!existing) {
+      days.set(key, {
+        ...order,
+        _dayGroup: true,
+        _groupedOrders: [order],
+        order_id: `day-${key}`,
+        order_ids: [...(order.order_ids || [order.order_id])],
+        seller_names: [...(order.seller_names || [order.seller_name])],
+        products: [...(order.products || [])],
+      });
+      return;
+    }
+
+    existing._groupedOrders.push(order);
+    existing.order_ids.push(...(order.order_ids || [order.order_id]));
+    (order.seller_names || [order.seller_name]).filter(Boolean).forEach((seller) => {
+      if (!existing.seller_names.includes(seller)) existing.seller_names.push(seller);
+    });
+    existing.products.push(...(order.products || []));
+    if (existing.status !== order.status) existing.status = "Mixed status";
+  });
+  return [...days.values()];
 }
 
 function consolidateOrders(orders) {
@@ -201,15 +254,17 @@ function orderHtml(order) {
         </div>
         <div class="order-meta">
           <span class="status ${statusClass(order.status)}">${escapeHtml(order.status)}</span>
-          <strong>${escapeHtml(order.total || "-")}</strong>
+          <strong class="order-total">${order._groupedOrders ? totalHtml(order._groupedOrders) : escapeHtml(order.total || "-")}</strong>
         </div>
       </div>
       <div class="products">${(order.products || []).map(productHtml).join("") || '<p class="missing">Product details unavailable.</p>'}</div>
-      <div class="order-foot">
-        <div class="rating" aria-label="Purchase rating">${stars(order)}</div>
-        <textarea class="notes" rows="1" placeholder="Add a private note...">${escapeHtml(custom.notes || "")}</textarea>
-        ${orderUrl ? `<a class="detail-link" href="${escapeHtml(orderUrl)}" target="_blank" rel="noopener">Order details ↗</a>` : ""}
-      </div>
+      ${order._dayGroup
+        ? '<div class="order-foot grouped-note">Ratings and notes are available when “Group by day” is off.</div>'
+        : `<div class="order-foot">
+            <div class="rating" aria-label="Purchase rating">${stars(order)}</div>
+            <textarea class="notes" rows="1" placeholder="Add a private note...">${escapeHtml(custom.notes || "")}</textarea>
+            ${orderUrl ? `<a class="detail-link" href="${escapeHtml(orderUrl)}" target="_blank" rel="noopener">Order details ↗</a>` : ""}
+          </div>`}
       <div class="order-id">Order ${escapeHtml((order.order_ids || [order.order_id]).join(", "))}</div>
     </article>`;
 }
@@ -227,8 +282,11 @@ function filteredOrders() {
     return !query || `${order.order_id} ${sellerText} ${order.status} ${productText}`.toLowerCase().includes(query);
   });
 
+  if (elements.groupByDay.checked) orders = groupOrdersByDay(orders);
+
   return orders.sort((a, b) => {
     if (elements.sort.value === "oldest") return parseOrderDate(a.order_date) - parseOrderDate(b.order_date);
+    if (elements.sort.value === "price") return priceSortValue(b) - priceSortValue(a);
     if (elements.sort.value === "rating") return Number(b.user_custom_data?.rating || 0) - Number(a.user_custom_data?.rating || 0);
     if (elements.sort.value === "seller") return a.seller_name.localeCompare(b.seller_name);
     return parseOrderDate(b.order_date) - parseOrderDate(a.order_date);
@@ -236,9 +294,12 @@ function filteredOrders() {
 }
 
 function updateStats(orders) {
+  const underlyingOrders = orders.flatMap((order) => order._groupedOrders || [order]);
   const products = orders.reduce((count, order) =>
     count + (order.products || []).reduce((sum, product) => sum + Number(product.quantity || 1), 0), 0);
-  const rated = orders.filter((order) => Number(order.user_custom_data?.rating || 0) > 0).length;
+  const rated = orders.filter((order) =>
+    (order._groupedOrders || [order]).some((item) => Number(item.user_custom_data?.rating || 0) > 0)
+  ).length;
   const sellers = new Map();
   orders.forEach((order) => {
     (order.seller_names || [order.seller_name]).filter(Boolean).forEach((seller) => {
@@ -249,7 +310,7 @@ function updateStats(orders) {
 
   document.getElementById("stat-orders").textContent = orders.length;
   document.getElementById("stat-products").textContent = products;
-  const totals = totalBreakdown(orders);
+  const totals = totalBreakdown(underlyingOrders);
   document.getElementById("stat-total").innerHTML = totals.length
     ? totals.map((total) => `
         <div class="total-line">
@@ -267,9 +328,12 @@ function render() {
   elements.orders.innerHTML = orders.map(orderHtml).join("");
   elements.orders.classList.toggle("hidden", !orders.length);
   elements.empty.classList.toggle("hidden", allOrders.length > 0);
-  elements.orderCount.textContent = `${orders.length} of ${allOrders.length} orders`;
+  const totalCount = elements.groupByDay.checked ? groupOrdersByDay(allOrders).length : allOrders.length;
+  const unit = elements.groupByDay.checked ? "days" : "orders";
+  elements.orderCount.textContent = `${orders.length} of ${totalCount} ${unit}`;
 
   elements.orders.querySelectorAll(".order-card").forEach((card) => {
+    if (card.querySelector(".grouped-note")) return;
     const order = allOrders.find((item) => item.order_id === card.dataset.orderId);
     card.querySelectorAll(".star").forEach((button) => {
       button.addEventListener("click", () => saveCustom(order, { rating: Number(button.dataset.rating) }));
@@ -342,7 +406,7 @@ async function loadOrders() {
   }
 }
 
-[elements.search, elements.status, elements.year, elements.sort, elements.unrated].forEach((element) => {
+[elements.search, elements.status, elements.year, elements.sort, elements.unrated, elements.groupByDay].forEach((element) => {
   element.addEventListener(element === elements.search ? "input" : "change", render);
 });
 

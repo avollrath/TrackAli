@@ -95,6 +95,7 @@ h1 span { color: var(--red); }
 .controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 13px;
   margin-bottom: 16px;
@@ -104,7 +105,7 @@ h1 span { color: var(--red); }
   box-shadow: var(--shadow);
 }
 
-.search { position: relative; flex: 1; }
+.search { position: relative; flex: 1; min-width: 260px; }
 .search span { position: absolute; left: 13px; top: 7px; color: var(--muted); font-size: 23px; transform: rotate(-15deg); }
 .search input, select {
   height: 42px;
@@ -127,6 +128,8 @@ select { padding: 0 34px 0 13px; }
 a.seller:hover { color: var(--red-dark); }
 .order-meta { display: flex; align-items: center; gap: 14px; }
 .order-meta > strong { font: 800 20px Manrope, sans-serif; }
+.order-total { display: grid; gap: 2px; text-align: right; }
+.order-total-line { display: block; white-space: nowrap; }
 .status { padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .status.done { color: var(--green); background: #e6f6ed; }
 .status.moving { color: var(--blue); background: #eaf2fb; }
@@ -150,6 +153,7 @@ a.product:hover { background: #fffaf8; }
 .star:hover, .star.filled { color: #ff9d00; }
 .notes { flex: 1; min-width: 120px; padding: 8px 0; resize: vertical; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); background: transparent; }
 .detail-link { color: var(--red-dark); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.grouped-note { color: var(--muted); font-size: 12px; }
 .order-id { padding: 0 22px 13px; color: #aaa; font-size: 10px; }
 
 .state { padding: 70px 24px; text-align: center; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
