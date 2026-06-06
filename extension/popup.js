@@ -1,185 +1,108 @@
-const syncBtn       = document.getElementById("sync-btn");
-const resultBox     = document.getElementById("result-box");
-const lastSyncedTxt = document.getElementById("last-synced-text");
-
-// Auth indicator
-const authIcon  = document.getElementById("auth-icon");
-const authLabel = document.getElementById("auth-label");
-const authSub   = document.getElementById("auth-sub");
-const authDot   = document.getElementById("auth-dot");
-
-// Server indicator
-const serverIcon  = document.getElementById("server-icon");
+const syncButton = document.getElementById("sync-btn");
+const result = document.getElementById("result");
+const pageDot = document.getElementById("page-dot");
+const pageLabel = document.getElementById("page-label");
+const pageSub = document.getElementById("page-sub");
+const serverDot = document.getElementById("server-dot");
 const serverLabel = document.getElementById("server-label");
-const serverSub   = document.getElementById("server-sub");
-const serverDot   = document.getElementById("server-dot");
+const serverSub = document.getElementById("server-sub");
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function formatAge(ts) {
-  if (!ts) return "";
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60)   return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
+let activeTabId = null;
+let pageReady = false;
+let serverReady = false;
+
+function setStatus(dot, state) {
+  dot.className = `status-dot ${state}`;
 }
 
-function setDot(el, iconEl, state) {
-  el.className = "status-dot";
-  iconEl.className = "status-icon";
-  if (state === "ok")    { el.classList.add("dot-green");  iconEl.classList.add("ok"); }
-  if (state === "warn")  { el.classList.add("dot-yellow"); iconEl.classList.add("warn"); }
-  if (state === "error") { el.classList.add("dot-red");    iconEl.classList.add("error"); }
+function updateButton() {
+  syncButton.disabled = !(pageReady && serverReady);
 }
 
-// ---------------------------------------------------------------------------
-// Server health check
-// ---------------------------------------------------------------------------
-let serverOk = false;
+function runtimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(response);
+    });
+  });
+}
 
-async function checkServer() {
+function tabMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(activeTabId, message, (response) => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(response);
+    });
+  });
+}
+
+async function checkPage() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  activeTabId = tab?.id;
+  if (!tab?.url?.includes("aliexpress.com")) throw new Error("Open AliExpress My Orders in this tab.");
+
+  const status = await tabMessage({ action: "getPageStatus" });
+  pageReady = Boolean(status?.isOrderPage);
+  setStatus(pageDot, pageReady ? "ok" : "warn");
+  pageLabel.textContent = pageReady ? "AliExpress orders ready" : "Not on My Orders";
+  pageSub.textContent = pageReady
+    ? `${status.capturedOrders} order${status.capturedOrders === 1 ? "" : "s"} currently visible`
+    : "Open My Orders before importing";
+}
+
+async function checkBackend() {
+  const status = await runtimeMessage({ action: "getBackendStatus" });
+  serverReady = Boolean(status?.success);
+  setStatus(serverDot, serverReady ? "ok" : "error");
+  serverLabel.textContent = serverReady ? "TrackAli backend running" : "Backend unavailable";
+  serverSub.textContent = serverReady
+    ? `${status.total_orders} saved order${status.total_orders === 1 ? "" : "s"}`
+    : "Run start.bat";
+}
+
+async function boot() {
+  await Promise.all([
+    checkPage().catch((error) => {
+      pageReady = false;
+      setStatus(pageDot, "warn");
+      pageLabel.textContent = "AliExpress orders needed";
+      pageSub.textContent = error.message;
+    }),
+    checkBackend().catch(() => {
+      serverReady = false;
+      setStatus(serverDot, "error");
+      serverLabel.textContent = "Backend unavailable";
+      serverSub.textContent = "Run start.bat";
+    }),
+  ]);
+  updateButton();
+}
+
+syncButton.addEventListener("click", async () => {
+  syncButton.disabled = true;
+  syncButton.textContent = "Loading every order...";
+  result.className = "";
+  result.textContent = "Keep this popup open while AliExpress loads older pages.";
+
   try {
-    const res = await fetch("http://localhost:5000/health", { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    setDot(serverDot, serverIcon, "ok");
-    serverLabel.textContent = "Backend running";
-    serverSub.textContent   = `${data.total_orders} order${data.total_orders !== 1 ? "s" : ""} in database`;
-    if (data.last_synced) {
-      const diff = Math.floor((Date.now() - new Date(data.last_synced)) / 1000);
-      let label;
-      if (diff < 60)    label = `${diff}s ago`;
-      else if (diff < 3600)  label = `${Math.floor(diff / 60)}m ago`;
-      else if (diff < 86400) label = `${Math.floor(diff / 3600)}h ago`;
-      else label = new Date(data.last_synced).toLocaleDateString();
-      lastSyncedTxt.textContent = `Last synced ${label}`;
-    } else {
-      lastSyncedTxt.textContent = "Never synced";
-    }
-    serverOk = true;
-  } catch {
-    setDot(serverDot, serverIcon, "error");
-    serverLabel.textContent = "Backend unreachable";
-    serverSub.textContent   = "Run python backend/app.py";
-    lastSyncedTxt.textContent = "";
-    serverOk = false;
+    const collected = await tabMessage({ action: "collectOrders" });
+    if (collected?.error) throw new Error(collected.error);
+
+    syncButton.textContent = "Saving orders...";
+    const saved = await runtimeMessage({ action: "syncOrders", orders: collected.orders });
+    if (!saved?.success) throw new Error(saved?.error || "Sync failed");
+
+    result.className = "success";
+    result.textContent = `${saved.total_orders} saved. ${saved.new_orders} new, ${saved.updated_orders} refreshed.`;
+    serverSub.textContent = `${saved.total_orders} saved orders`;
+  } catch (error) {
+    result.className = "error";
+    result.textContent = error.message;
+  } finally {
+    syncButton.textContent = "Import all orders";
+    updateButton();
   }
-  updateSyncBtn();
-}
-
-// ---------------------------------------------------------------------------
-// Auth status
-// ---------------------------------------------------------------------------
-let authOk = false;
-
-function checkAuth() {
-  chrome.runtime.sendMessage({ action: "getStatus" }, (response) => {
-    if (chrome.runtime.lastError || !response) {
-      setDot(authDot, authIcon, "error");
-      authLabel.textContent = "Extension error";
-      authSub.textContent   = chrome.runtime.lastError?.message || "";
-      authOk = false;
-      updateSyncBtn();
-      return;
-    }
-
-    if (response.hasCredentials) {
-      const ago = formatAge(response.capturedAt);
-      setDot(authDot, authIcon, "ok");
-      authLabel.textContent = "Session token captured";
-      authSub.textContent   = ago ? `Captured ${ago}` : "Ready";
-      authOk = true;
-    } else {
-      setDot(authDot, authIcon, "warn");
-      authLabel.textContent = "No valid session token";
-      authSub.textContent   = "Open wolt.com to capture";
-      authOk = false;
-    }
-    updateSyncBtn();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Sync button state
-// ---------------------------------------------------------------------------
-function updateSyncBtn() {
-  syncBtn.disabled = !(authOk && serverOk);
-}
-
-// ---------------------------------------------------------------------------
-// Sync
-// ---------------------------------------------------------------------------
-syncBtn.addEventListener("click", () => {
-  syncBtn.disabled = true;
-  syncBtn.textContent = "Syncing...";
-  resultBox.style.display = "none";
-
-  chrome.runtime.sendMessage({ action: "sync" }, (response) => {
-    syncBtn.disabled = !(authOk && serverOk);
-    syncBtn.textContent = "Sync Now";
-
-    if (chrome.runtime.lastError) {
-      showResult("error", "Extension error", chrome.runtime.lastError.message);
-      return;
-    }
-
-    if (response.success) {
-      const msg = response.new_orders === 0
-        ? "Already up to date"
-        : `${response.new_orders} new order${response.new_orders !== 1 ? "s" : ""} added`;
-
-      showResult("success", msg, null, {
-        "New orders":    response.new_orders,
-        "Already saved": response.existing_orders,
-        "Total":         response.total_orders,
-      });
-
-      // Refresh server stats after sync
-      checkServer();
-    } else {
-      // If 401, auth is now invalid
-      if (response.error?.includes("401") || response.error?.includes("expired")) {
-        setDot(authDot, authIcon, "warn");
-        authLabel.textContent = "Session expired";
-        authSub.textContent   = "Reload wolt.com";
-        authOk = false;
-        updateSyncBtn();
-      }
-      showResult("error", "Sync failed", response.error);
-    }
-  });
 });
 
-// ---------------------------------------------------------------------------
-// Result display
-// ---------------------------------------------------------------------------
-function showResult(type, title, message, stats) {
-  resultBox.className = `result ${type}`;
-
-  const icon = type === "success" ? "OK" : "Error";
-  let html = `<div class="result-title">${icon} ${escHtml(title)}</div>`;
-
-  if (stats && type === "success") {
-    html += Object.entries(stats).map(([k, v]) =>
-      `<div class="result-stat"><span>${k}</span><span>${v}</span></div>`
-    ).join("");
-  } else if (message) {
-    html += `<div style="margin-top:2px;opacity:.8">${escHtml(message)}</div>`;
-  }
-
-  resultBox.innerHTML = html;
-  resultBox.style.display = "block";
-}
-
-function escHtml(str) {
-  return String(str ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-// Boot - check server in parallel with auth status.
-checkAuth();
-checkServer();
-setInterval(checkAuth, 10_000);
-
+boot();

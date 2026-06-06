@@ -1,83 +1,183 @@
-// Runs inside wolt.com page context — reads auth token from localStorage
-// and forwards it to the background service worker via chrome.runtime.sendMessage.
+const capturedOrders = new Map();
+let syncing = false;
 
-(function () {
-  function isWoltBearerToken(value) {
-    return typeof value === "string" && value.startsWith("Bearer ey") && value.length >= 100;
+function absoluteUrl(value) {
+  if (!value) return "";
+  try {
+    return new URL(value, location.origin).href;
+  } catch {
+    return "";
   }
+}
 
-  function findToken() {
-    // Wolt stores its auth state in localStorage under various keys.
-    // Try the known ones first, then do a broad scan.
-    const candidates = [
-      "wolt_auth_token",
-      "authToken",
-      "auth_token",
-      "token",
-      "access_token",
-      "wolt-token",
-    ];
+function cleanText(value) {
+  return String(value || "")
+    .replaceAll("â‚¬", "€")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-    for (const key of candidates) {
-      const val = localStorage.getItem(key);
-      if (isWoltBearerToken(val)) return val;
-    }
+function orderFromFields(fields) {
+  if (!fields?.orderId) return null;
+  return {
+    order_id: String(fields.orderId),
+    order_date: cleanText(fields.orderDateText),
+    status: cleanText(fields.statusText) || "Unknown",
+    seller_name: cleanText(fields.storeName) || "Unknown seller",
+    seller_url: absoluteUrl(fields.storePageUrl),
+    order_url: absoluteUrl(fields.orderDetailUrl),
+    message_url: absoluteUrl(fields.sellerConnectUrl),
+    total: cleanText(fields.totalPriceText || fields.formatPriceInfo?.split("|")[0]),
+    products: (fields.orderLines || []).map((line) => ({
+      name: cleanText(line.itemTitle) || "AliExpress item",
+      variant: (line.skuAttrs || []).map((attr) => cleanText(attr.text)).filter(Boolean).join(", "),
+      quantity: Number(line.quantity) || 1,
+      price: cleanText(line.itemPriceText || line.formatPriceInfo?.split("|")[0]),
+      image_url: absoluteUrl(line.itemImgUrl),
+      product_url: absoluteUrl(line.itemDetailUrl),
+    })),
+  };
+}
 
-    // Broad scan: any localStorage value that looks like a Bearer JWT
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      const val = localStorage.getItem(key);
-      if (isWoltBearerToken(val)) return val;
-    }
-
-    // Try sessionStorage too
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      const val = sessionStorage.getItem(key);
-      if (isWoltBearerToken(val)) return val;
-    }
-
-    return null;
+function capturePayload(payload) {
+  const components = payload?.data?.data;
+  if (!components || typeof components !== "object") return;
+  for (const component of Object.values(components)) {
+    if (component?.tag !== "pc_om_list_order") continue;
+    const order = orderFromFields(component.fields);
+    if (order) capturedOrders.set(order.order_id, order);
   }
+}
 
-  function findSessionId() {
-    // Try localStorage keys that look like session IDs (UUIDs)
-    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const sessionCandidates = ["wolt-session-id", "sessionId", "session_id", "wolt_session"];
-    for (const key of sessionCandidates) {
-      const val = localStorage.getItem(key) || sessionStorage.getItem(key);
-      if (val && uuidRe.test(val)) return val;
+window.addEventListener("trackali:order-response", (event) => capturePayload(event.detail));
+
+function textOf(element) {
+  return cleanText(element?.textContent);
+}
+
+function closestOrderCard(link) {
+  let node = link;
+  while (node && node !== document.body) {
+    const text = textOf(node);
+    if (node.querySelectorAll?.('a[href*="/item/"]').length && /Order\s*(ID|date)|Total/i.test(text)) {
+      return node;
     }
-    return null;
+    node = node.parentElement;
   }
+  return link.closest("div");
+}
 
-  function sendCredentials() {
-    const token = findToken();
-    if (!token) return false;
+function parseDomOrders() {
+  const detailLinks = [...document.querySelectorAll('a[href*="/p/order/detail.html"][href*="orderId="]')];
+  for (const detailLink of detailLinks) {
+    const orderId = new URL(detailLink.href).searchParams.get("orderId");
+    if (!orderId) continue;
 
-    const sessionId = findSessionId(); // optional — may be null
+    const card = closestOrderCard(detailLink);
+    const cardText = textOf(card);
+    const productMap = new Map();
 
-    chrome.runtime.sendMessage({
-      action: "storeCredentials",
-      authorization: token,
-      sessionId: sessionId,
+    [...card.querySelectorAll('a[href*="/item/"]')].forEach((link) => {
+      const href = absoluteUrl(link.href);
+      if (productMap.has(href)) return;
+      const container = link.closest("div");
+      const image = container?.querySelector("img");
+      const title = cleanText(link.title || image?.alt || textOf(link));
+      if (!title) return;
+      productMap.set(href, {
+        name: title,
+        variant: "",
+        quantity: 1,
+        price: cleanText(textOf(container).match(/(?:€|US \$|\$|£)\s?[\d.,]+/)?.[0]),
+        image_url: absoluteUrl(image?.src),
+        product_url: href,
+      });
     });
 
+    const date = cardText.match(/(?:Order date\s*)?([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/i)?.[1] || "";
+    const total = [...cardText.matchAll(/(?:€|US \$|\$|£)\s?[\d.,]+/g)].at(-1)?.[0] || "";
+    const status = cardText.match(/To pay|To ship|Shipped|Awaiting delivery|Completed|Processed|Cancelled|Refunded/i)?.[0] || "Unknown";
+    const storeLink = card.querySelector('a[href*="/store/"]');
+    const existing = capturedOrders.get(orderId) || {};
+
+    capturedOrders.set(orderId, {
+      order_id: orderId,
+      order_date: existing.order_date || cleanText(date),
+      status: existing.status || cleanText(status),
+      seller_name: existing.seller_name || textOf(storeLink) || "Unknown seller",
+      seller_url: existing.seller_url || absoluteUrl(storeLink?.href),
+      order_url: existing.order_url || detailLink.href,
+      message_url: existing.message_url || "",
+      total: existing.total || cleanText(total),
+      products: existing.products?.length ? existing.products : [...productMap.values()],
+    });
+  }
+}
+
+function findViewOrdersButton() {
+  return [...document.querySelectorAll("button, a, [role='button']")].find((element) => {
+    const text = textOf(element).toLowerCase();
+    return element.getClientRects().length > 0 && (text === "view orders" || text === "view more orders");
+  });
+}
+
+function waitForGrowth(previousCount, timeout = 12000) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      parseDomOrders();
+      if (capturedOrders.size > previousCount || Date.now() - started >= timeout) {
+        clearInterval(timer);
+        resolve(capturedOrders.size > previousCount);
+      }
+    }, 300);
+  });
+}
+
+async function collectAllOrders() {
+  if (syncing) throw new Error("A sync is already running.");
+  syncing = true;
+  try {
+    parseDomOrders();
+    let clicks = 0;
+
+    while (clicks < 200) {
+      const button = findViewOrdersButton();
+      if (!button) break;
+      const previousCount = capturedOrders.size;
+      button.scrollIntoView({ block: "center" });
+      button.click();
+      clicks += 1;
+      const grew = await waitForGrowth(previousCount);
+      if (!grew && findViewOrdersButton() === button) break;
+    }
+
+    parseDomOrders();
+    if (!capturedOrders.size) {
+      throw new Error("No orders found. Open AliExpress My Orders and wait for the list to load.");
+    }
+    return { orders: [...capturedOrders.values()], clicks };
+  } finally {
+    syncing = false;
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === "getPageStatus") {
+    parseDomOrders();
+    sendResponse({
+      supported: true,
+      isOrderPage: /\/p\/order\/index\.html|\/orderList\./i.test(location.href) ||
+        document.querySelector('a[href*="/p/order/detail.html"][href*="orderId="]') !== null,
+      capturedOrders: capturedOrders.size,
+    });
+    return;
+  }
+
+  if (message.action === "collectOrders") {
+    collectAllOrders()
+      .then(sendResponse)
+      .catch((error) => sendResponse({ error: error.message }));
     return true;
   }
-
-  // Try immediately on script injection
-  if (!sendCredentials()) {
-    // Wolt is a SPA — wait for the app to hydrate and write to storage
-    const observer = new MutationObserver(() => {
-      if (sendCredentials()) observer.disconnect();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Also retry on a short interval for up to 10 seconds
-    let attempts = 0;
-    const interval = setInterval(() => {
-      if (sendCredentials() || ++attempts > 20) clearInterval(interval);
-    }, 500);
-  }
-})();
+});

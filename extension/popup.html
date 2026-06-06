@@ -3,68 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wolt Ratings</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+  <title>TrackAli</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-
-  <!-- Header -->
-  <div class="header">
-    <div class="header-text">
-      <h1>Wolt Ratings</h1>
-      <p>Order history sync</p>
+  <header>
+    <img src="icons/logo.svg" alt="" />
+    <div>
+      <h1>TrackAli</h1>
+      <p>AliExpress order library</p>
     </div>
-  </div>
+  </header>
 
-  <!-- Body -->
-  <div class="body">
-
-    <!-- Status indicators -->
-    <div class="status-group">
-      <!-- Auth token -->
-      <div class="status-row">
-        <div class="status-icon" id="auth-icon">🔑</div>
-        <div class="status-text-block">
-          <div class="status-label" id="auth-label">Checking…</div>
-          <div class="status-sub" id="auth-sub"></div>
-        </div>
-        <div class="status-dot" id="auth-dot"></div>
+  <main>
+    <div class="status-row">
+      <span class="status-dot" id="page-dot"></span>
+      <div>
+        <strong id="page-label">Checking page...</strong>
+        <small id="page-sub"></small>
       </div>
-      <!-- Server -->
-      <div class="status-row">
-        <div class="status-icon" id="server-icon">🖥️</div>
-        <div class="status-text-block">
-          <div class="status-label" id="server-label">Checking server…</div>
-          <div class="status-sub" id="server-sub"></div>
-        </div>
-        <div class="status-dot" id="server-dot"></div>
+    </div>
+    <div class="status-row">
+      <span class="status-dot" id="server-dot"></span>
+      <div>
+        <strong id="server-label">Checking backend...</strong>
+        <small id="server-sub"></small>
       </div>
     </div>
 
-    <!-- Last synced -->
-    <p class="last-synced" id="last-synced-text"></p>
+    <button id="sync-btn" disabled>Import all orders</button>
+    <div id="result" role="status"></div>
+  </main>
 
-    <!-- Sync button -->
-    <button class="btn-sync" id="sync-btn" disabled>Sync Now</button>
-
-    <!-- Result -->
-    <div class="result" id="result-box"></div>
-
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <a class="footer-link" href="http://localhost:5000" target="_blank">
-      Open Dashboard
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-    </a>
-    <span class="footer-hint">Visit wolt.com to capture token</span>
-  </div>
-
+  <footer>
+    <a href="https://www.aliexpress.com/p/order/index.html" target="_blank">AliExpress orders</a>
+    <a href="http://localhost:5000" target="_blank">Dashboard</a>
+  </footer>
   <script src="popup.js"></script>
 </body>
 </html>
-

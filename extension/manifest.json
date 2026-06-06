@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Wolt Ratings Sync",
-  "version": "1.1.0",
-  "description": "Capture Wolt session tokens and sync order history to your local Wolt Ratings app.",
-  "permissions": [
-    "webRequest",
-    "storage"
-  ],
+  "name": "TrackAli",
+  "version": "2.0.0",
+  "description": "Import AliExpress order history into the local TrackAli dashboard.",
+  "permissions": ["activeTab", "storage", "tabs"],
   "host_permissions": [
-    "https://consumer-api.wolt.com/*",
-    "https://wolt.com/*",
+    "https://www.aliexpress.com/*",
+    "https://*.aliexpress.com/*",
+    "https://acs.aliexpress.com/*",
     "http://localhost:5000/*"
   ],
   "background": {
@@ -17,9 +15,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://wolt.com/*"],
+      "matches": ["https://www.aliexpress.com/*", "https://*.aliexpress.com/*"],
+      "js": ["page-listener.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.aliexpress.com/*", "https://*.aliexpress.com/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "action": {
